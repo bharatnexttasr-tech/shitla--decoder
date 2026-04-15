@@ -1,0 +1,2424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fuel Fill Decoder – TASR/UIPL</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f4f6fa; color: #1a2233; min-height: 100vh; }
+
+  .topbar { background: #1a3a6b; color: #fff; padding: 0 32px; height: 56px; display: flex; align-items: center; gap: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .topbar .logo { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #ffc107; border-right: 1px solid rgba(255,255,255,0.2); padding-right: 16px; }
+  .topbar h1 { font-size: 16px; font-weight: 600; }
+  .topbar .sub { font-size: 12px; color: rgba(255,255,255,0.55); margin-left: auto; }
+
+  .main { max-width: 100%; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .sec-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #1a3a6b; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .sec-title::after { content: ''; flex: 1; height: 1px; background: #d0d8e8; }
+
+  .tab-row { display: flex; margin-bottom: 16px; border: 1px solid #d0d8e8; border-radius: 8px; overflow: hidden; background: #fff; width: fit-content; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .tab-btn { padding: 10px 24px; font-size: 13px; font-weight: 600; border: none; background: transparent; cursor: pointer; color: #6b7a99; transition: all 0.15s; }
+  .tab-btn.active { background: #1a3a6b; color: #fff; }
+  .tab-btn:not(.active):hover { background: #f0f4ff; color: #1a3a6b; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .col-grid { display: grid; grid-template-columns: 140px 130px 160px 160px 1fr; gap: 10px; background: #fff; border: 1px solid #d0d8e8; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); max-width: 1100px; }
+  .col-block { display: flex; flex-direction: column; gap: 6px; }
+  .col-head { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 10px; border-radius: 5px; text-align: center; }
+  .col-head.veh   { background: #fff3cd; color: #7a5300; border: 1px solid #ffc107; }
+  .col-head.qty   { background: #d1f5e0; color: #1a6b3a; border: 1px solid #28a745; }
+  .col-head.date  { background: #dbe8ff; color: #1a3a6b; border: 1px solid #4d7fd4; }
+  .col-head.time  { background: #f0e6ff; color: #5a1a8a; border: 1px solid #9b59b6; }
+  .col-head.notes { background: #ffe8e8; color: #7a1a1a; border: 1px solid #e74c3c; }
+  .col-ta { width: 100%; border: 1px solid #d0d8e8; border-radius: 6px; padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.8; resize: none; height: 260px; outline: none; background: #fafbfd; color: #1a2233; transition: border-color 0.15s; }
+  .col-ta:focus { background: #fff; }
+  .col-ta.veh:focus { border-color: #ffc107; } .col-ta.qty:focus { border-color: #28a745; }
+  .col-ta.date:focus { border-color: #4d7fd4; } .col-ta.time:focus { border-color: #9b59b6; }
+  .col-ta.notes:focus { border-color: #e74c3c; }
+  .col-ta::placeholder { color: #bbc3d4; font-size: 12px; }
+
+  .wa-box { background: #fff; border: 1px solid #d0d8e8; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .wa-box textarea { width: 100%; height: 200px; border: 1px solid #d0d8e8; border-radius: 6px; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.8; resize: vertical; outline: none; background: #fafbfd; color: #1a2233; transition: border-color 0.15s; }
+  .wa-box textarea:focus { border-color: #25d366; background: #fff; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  button { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px; border: none; padding: 10px 22px; cursor: pointer; border-radius: 7px; transition: all 0.15s; }
+  .btn-primary { background: #1a3a6b; color: #fff; }
+  .btn-primary:hover { background: #245299; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(26,58,107,0.3); }
+  .btn-excel { background: #1d6f42; color: #fff; }
+  .btn-excel:hover { background: #2a8a54; transform: translateY(-1px); }
+  .btn-excel:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+  .btn-clear { background: #fff; color: #6b7a99; border: 1px solid #d0d8e8; }
+  .btn-clear:hover { border-color: #e74c3c; color: #e74c3c; }
+
+  /* PAGE NAV */
+  .page-nav-bar { display: flex; align-items: stretch; background: #fff; border: 1px solid #d0d8e8; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-top: 28px; margin-bottom: 16px; max-width: 1100px; }
+  .pnav-btn { flex: 1; padding: 13px 16px; font-size: 13px; font-weight: 600; border: none; background: transparent; cursor: pointer; color: #6b7a99; border-right: 1px solid #d0d8e8; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; }
+  .pnav-btn.active { background: #1a3a6b; color: #fff; }
+  .pnav-btn:not(.active):hover { background: #f0f4ff; color: #1a3a6b; }
+  .pnav-badge { font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 700; background: #ffc107; color: #000; }
+  .pnav-btn.active .pnav-badge { background: rgba(255,255,255,0.25); color: #fff; }
+  .pnav-excel-wrap { display: flex; align-items: center; padding: 0 12px; border-left: 1px solid #d0d8e8; }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; max-width: 1100px; }
+  .stat-card { background: #fff; border: 1px solid #d0d8e8; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .stat-card.s1 { border-top: 3px solid #1a3a6b; } .stat-card.s2 { border-top: 3px solid #28a745; }
+  .stat-card.s3 { border-top: 3px solid #ffc107; } .stat-card.s4 { border-top: 3px solid #e74c3c; }
+  .stat-card .num { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: #1a2233; line-height: 1; }
+  .stat-card .lbl { font-size: 11px; color: #8899aa; letter-spacing: 1px; text-transform: uppercase; margin-top: 5px; }
+
+  /* TABLES */
+  .table-wrap { background: #fff; border: 1px solid #d0d8e8; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); max-width: 1100px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th { background: #1a3a6b; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 12px 14px; text-align: left; white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid #eef1f7; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f7f9ff; }
+  tbody tr.high-fill { background: #fff8e1; }
+  tbody tr.high-fill:hover { background: #fff3cd; }
+  tbody tr.total-row { background: #f0f7ff; font-weight: 700; border-top: 2px solid #1a3a6b; }
+  td { padding: 10px 14px; vertical-align: middle; }
+  .badge-veh { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; background: #fff3cd; border: 1px solid #ffc107; color: #7a5300; padding: 3px 10px; border-radius: 5px; display: inline-block; }
+  .qty-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; color: #1d6f42; }
+  .qty-val.high { color: #e67e00; }
+  .date-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #1a3a6b; }
+  .time-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #7a5aaa; }
+  .sender-val { font-size: 13px; color: #3a5a8a; }
+  .notes-val { font-size: 12px; color: #6b7a99; }
+  .row-idx { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #bbc3d4; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; color: #6b7a99; align-items: center; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 5px; }
+
+  /* ── PIVOT TABLE ── */
+  .pivot-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 72vh;
+    background: #fff;
+    border: 1px solid #d0d8e8;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    width: 100%;
+  }
+  .pivot-tbl { border-collapse: collapse; font-size: 11px; min-width: 100%; }
+
+  /* Header rows */
+  .pivot-tbl .ph-veh {
+    background: #1a3a6b; color: #fff; font-size: 9px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 10px;
+    text-align: center; white-space: nowrap; border-right: 3px solid #ffc107;
+    min-width: 120px; vertical-align: middle;
+  }
+  .pivot-tbl .ph-date {
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-align: center;
+    padding: 8px 6px; white-space: nowrap; text-transform: uppercase; color: #fff;
+  }
+  .pivot-tbl .ph-sub {
+    font-size: 8px; font-weight: 700; letter-spacing: 1px; text-align: center;
+    padding: 5px 3px; white-space: nowrap; text-transform: uppercase;
+    border-bottom: 2px solid rgba(0,0,0,0.08);
+  }
+  .pivot-tbl .ph-sub.bal  { background: #1a2233; color: #fff; }
+  .pivot-tbl .ph-sub.fill { background: #1a2233; color: #fff; }
+  .pivot-tbl .ph-sub.cons { background: #1a2233; color: #fff; }
+
+  /* Start/End datetime header */
+  .pivot-tbl .ph-dt {
+    background: #1a2233; color: #fff; font-size: 8px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; padding: 5px 4px;
+    text-align: center; white-space: nowrap; border-bottom: 2px solid rgba(0,0,0,0.08);
+  }
+  /* datetime input cell */
+  .pv-cell-dt {
+    background: transparent; min-width: 168px; max-width: 175px;
+    text-align: center; padding: 3px 6px; vertical-align: middle;
+    border-right: 1px solid #e0e8f0;
+  }
+  .pv-inp-dt {
+    width: 158px; border: none; border-bottom: 2px solid transparent;
+    background: transparent; text-align: left;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+    color: #2c3e50; padding: 4px 3px; outline: none;
+    transition: border-color 0.15s;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    resize: none;
+    line-height: 1.5;
+    min-height: 40px;
+    display: block;
+    overflow: hidden;
+  }
+  .pv-inp-dt:focus { border-bottom-color: #2c3e50; background: rgba(255,255,255,0.9); border-radius: 4px 4px 0 0; }
+  .pv-inp-dt::placeholder { color: #b0bec5; font-size: 10px; white-space: pre-line; }
+
+  /* Data rows */
+  .pivot-tbl tbody tr { transition: background 0.12s; }
+  .pivot-tbl tbody tr:hover td { filter: brightness(0.96); }
+  .pivot-tbl tbody tr:hover td[style*="sticky"] { filter: none; }
+
+  /* Cell input wrapper style */
+  .pv-cell {
+    text-align: center; padding: 1px 2px;
+    min-width: 58px; max-width: 76px;
+    vertical-align: middle;
+  }
+  .pv-cell-bal  { background: transparent; border-right: 1px solid #e0eaf8; }
+  .pv-cell-pump { background: transparent; border-right: 1px solid #d0eedd; }
+  .pv-cell-obdf { background: transparent; border-right: 1px solid #cce5f5; }
+  .pv-cell-cons { background: transparent; }
+
+  /* Spinner-free number inputs */
+  .pv-inp {
+    width: 56px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 1px;
+    outline: none;
+    border-radius: 0;
+    transition: border-color 0.15s, background 0.15s;
+    -moz-appearance: textfield;
+  }
+  .pv-inp::-webkit-outer-spin-button,
+  .pv-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .pv-inp.bal  { color: #1a3a6b; }
+  .pv-inp.pump { color: #1d6f42; font-weight: 700; }
+  .pv-inp.obdf { color: #006080; }
+  .pv-inp.obdf.sensor { color: #1a6b3a; }
+  .pv-inp.cons { color: #7a3900; }
+  .pv-inp:focus {
+    border-bottom-color: currentColor;
+    background: rgba(255,255,255,0.9);
+    border-radius: 4px 4px 0 0;
+  }
+  .pv-inp::placeholder { color: #c8d4e4; font-weight: 400; font-size: 12px; }
+  .pv-inp.has-val { border-bottom-color: rgba(0,0,0,0.12); }
+
+  /* Pump fill cell highlight when has value */
+  .pv-cell-pump.filled { background: transparent; }
+  .pv-cell-pump.filled .pv-inp { color: #1d6f42; }
+  .pv-cell-pump.high   { background: transparent; }
+  .pv-cell-pump.high   .pv-inp { color: #e67e00; }
+
+  /* OBD fill sensor highlight */
+  .pv-cell-obdf.sensor { background: transparent; }
+
+  /* Total row */
+  .pivot-tbl tr.pvtot td {
+    border-top: 2px solid #1a3a6b !important;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+
+
+  /* Hide spinners on ALL number inputs in pivot */
+  .pivot-scroll input[type=number]::-webkit-outer-spin-button,
+  .pivot-scroll input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .pivot-scroll input[type=number] { -moz-appearance: textfield; }
+  .hint-bar { font-size: 12px; color: #6b7a99; margin-bottom: 10px; padding: 10px 14px; background: #fffbea; border: 1px solid #ffc107; border-radius: 6px; }
+  /* RECONCILIATION TABLE */
+  .recon-wrap { margin-top: 20px; }
+  .recon-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #7a1a1a; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+  .recon-title::after { content: ""; flex: 1; height: 1px; background: #f0c0c0; }
+  .recon-hint { font-size: 12px; color: #6b7a99; margin-bottom: 10px; padding: 10px 14px; background: #fff5f5; border: 1px solid #f0c0c0; border-radius: 6px; line-height: 1.7; }
+  .recon-table-wrap { background: #fff; border: 1px solid #d0d8e8; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .recon-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .recon-tbl thead th { background: #7a1a1a; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 11px 14px; text-align: center; white-space: nowrap; border-right: 1px solid rgba(255,255,255,0.15); }
+  .recon-tbl thead th:first-child { text-align: left; background: #5a0f0f; min-width: 130px; }
+  .recon-tbl thead th.th-open { background: #1a3a6b; }
+  .recon-tbl thead th.th-fill { background: #1d6f42; }
+  .recon-tbl thead th.th-last { background: #1a3a6b; }
+  .recon-tbl thead th.th-man  { background: #e67e00; }
+  .recon-tbl thead th.th-obd  { background: #5a1a8a; }
+  .recon-tbl thead th.th-diff { background: #2c3e50; }
+  .recon-tbl tbody tr { border-bottom: 1px solid #eef1f7; }
+  .recon-tbl tbody tr:hover { background: #fff5f5; }
+  .recon-tbl td { padding: 9px 12px; text-align: center; vertical-align: middle; }
+  .recon-tbl td:first-child { text-align: left; }
+  .recon-inp { width: 90px; border: 1px solid #d0d8e8; border-radius: 5px; padding: 5px 8px; text-align: center; font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 600; color: #1a2233; background: #fafbfd; outline: none; transition: border-color 0.15s; }
+  .recon-inp.open:focus { border-color: #1a3a6b; background: #f0f4ff; }
+  .recon-inp.last:focus { border-color: #1a3a6b; background: #f0f4ff; }
+  .recon-inp.obd:focus  { border-color: #5a1a8a; background: #f5f0ff; }
+  .diff-pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .diff-ok     { background: #d1f5e0; color: #1d6f42; }
+  .diff-theft  { background: #fde8e8; color: #c0392b; }
+  .diff-sensor { background: #fff3cd; color: #7a5300; }
+  .diff-na     { background: #f0f0f0; color: #aaa; }
+  .recon-tbl tr.recon-total-row td { background: #f0f7ff; font-weight: 700; border-top: 2px solid #1a3a6b; font-family: "JetBrains Mono", monospace; }
+
+
+  .empty { text-align: center; padding: 60px 20px; color: #bbc3d4; }
+  .empty .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty p { font-size: 14px; }
+
+
+  /* SESSION */
+  .session-badge {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  .btn-clear-session {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255,80,80,0.5);
+    background: rgba(255,80,80,0.1);
+    color: #ff8080;
+    padding: 5px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-clear-session:hover {
+    background: rgba(255,80,80,0.25);
+    border-color: #ff5050;
+    color: #fff;
+  }
+
+
+  /* PIVOT CONTROL TOOLBAR */
+  .pivot-toolbar {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    background: #fff; border: 1px solid #d0d8e8; border-radius: 8px;
+    padding: 10px 16px; margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .ptb-group { display: flex; align-items: center; gap: 8px; }
+  .ptb-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: #6b7a99; white-space: nowrap;
+  }
+  .ptb-val {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    font-weight: 700; color: #1a3a6b; min-width: 30px; text-align: center;
+  }
+  .ptb-btn {
+    width: 26px; height: 26px; border-radius: 5px; border: 1px solid #d0d8e8;
+    background: #f4f6fa; color: #1a3a6b; font-size: 15px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    line-height: 1; transition: all 0.12s; font-family: 'Inter', sans-serif;
+    padding: 0;
+  }
+  .ptb-btn:hover { background: #1a3a6b; color: #fff; border-color: #1a3a6b; }
+  .ptb-btn:active { transform: scale(0.92); }
+  .ptb-divider { width: 1px; height: 28px; background: #e0e8f0; }
+  .ptb-reset {
+    font-size: 11px; font-weight: 600; color: #6b7a99;
+    cursor: pointer; padding: 4px 10px; border-radius: 5px;
+    border: 1px solid #d0d8e8; background: #f4f6fa;
+    transition: all 0.12s; font-family: 'Inter', sans-serif;
+  }
+  .ptb-reset:hover { color: #e74c3c; border-color: #e74c3c; background: #fff5f5; }
+
+  @media (max-width: 900px) { .col-grid { grid-template-columns: 1fr 1fr; } .stats-row { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .col-grid { grid-template-columns: 1fr; } .stats-row { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">TASR / UIPL</div>
+  <h1>&#9981; Fuel Fill Decoder</h1>
+  <div class="sub">Fleet Fuel Management Tool</div>
+  <span class="session-badge" id="sessionBadge">&#128190; No saved session</span>
+  <button class="btn-clear-session" onclick="clearSession()">&#10005; Clear Session</button>
+</div>
+
+<div class="main">
+
+  <div class="sec-title" style="margin-top:4px;">Input Method</div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="switchInputTab('col',this)">&#128202; Column Entry</button>
+    <button class="tab-btn" onclick="switchInputTab('wa',this)">&#128172; WhatsApp Paste</button>
+  </div>
+
+  <!-- COLUMN ENTRY -->
+  <div class="tab-pane active" id="tab-col">
+    <div class="col-grid">
+      <div class="col-block">
+        <div class="col-head veh">&#128666; Vehicle No</div>
+        <textarea id="c-veh" class="col-ta veh" placeholder="5111&#10;7560&#10;3153&#10;7559&#10;2028&#10;4053&#10;5011"></textarea>
+      </div>
+      <div class="col-block">
+        <div class="col-head qty">&#9981; Qty (Litres)</div>
+        <textarea id="c-qty" class="col-ta qty" placeholder="227.3&#10;142.11&#10;132.89&#10;112.36&#10;112.44&#10;197.6&#10;137"></textarea>
+      </div>
+      <div class="col-block">
+        <div class="col-head date">&#128197; Date</div>
+        <textarea id="c-date" class="col-ta date" placeholder="25-03-2026&#10;25-03-2026&#10;26-03-2026&#10;(blank = today)"></textarea>
+      </div>
+      <div class="col-block">
+        <div class="col-head time">&#9200; Time</div>
+        <textarea id="c-time" class="col-ta time" placeholder="06:56 AM&#10;09:01 PM&#10;09:28 PM&#10;(optional)"></textarea>
+      </div>
+      <div class="col-block">
+        <div class="col-head notes">&#128221; Notes</div>
+        <textarea id="c-notes" class="col-ta notes" placeholder="afis se&#10;tiwari&#10;tiwari&#10;tiwari&#10;tiwari&#10;tiwari&#10;tiwsr"></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="decodeColumns()">&#9889; DECODE COLUMNS</button>
+      <button class="btn-clear" onclick="clearAll()">&#10005; Clear</button>
+    </div>
+  </div>
+
+  <!-- WHATSAPP PASTE -->
+  <div class="tab-pane" id="tab-wa">
+    <div class="wa-box">
+      <div style="font-size:12px;color:#6b7a99;margin-bottom:10px;">Paste raw WhatsApp messages — timestamps and sender names extracted automatically.</div>
+      <textarea id="wa-input" placeholder="[25/03/26, 6:56:12 AM] Monu Ji Shitla: 5111 227.3 afis se&#10;[25/03/26, 9:01:06 PM] Monu Ji Shitla: 7560 142.11litar tiwari&#10;[25/03/26, 9:01:07 PM] Monu Ji Shitla: 3153  132.89litar tiwari&#10;5011 137litar tiwsr"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="decodeWA()">&#9889; DECODE MESSAGES</button>
+      <button class="btn-clear" onclick="document.getElementById('wa-input').value=''">&#10005; Clear</button>
+    </div>
+  </div>
+
+  <!-- PAGE NAVIGATION -->
+  <div id="pageNav" style="display:none;">
+    <div class="page-nav-bar">
+      <button class="pnav-btn active" id="pnav1" onclick="switchPage(1)">
+        &#128203; Page 1 &mdash; Fill Details <span class="pnav-badge" id="badge1">0</span>
+      </button>
+      <button class="pnav-btn" id="pnav2" onclick="switchPage(2)">
+        &#128202; Page 2 &mdash; Vehicle Summary <span class="pnav-badge" id="badge2">0</span>
+      </button>
+      <button class="pnav-btn" id="pnav3" onclick="switchPage(3)">
+        &#128260; Page 3 &mdash; Pivot Report <span class="pnav-badge" id="badge3">0</span>
+      </button>
+      <div class="pnav-excel-wrap">
+        <button class="btn-excel" onclick="downloadExcel()" id="btnExcel" style="padding:8px 18px;font-size:12px;">
+          &#128229; Download Excel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 1: FILL DETAILS -->
+  <div id="page1" style="display:none;">
+    <div class="stats-row" id="statsRow"></div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#fff3cd;border:1px solid #ffc107;"></span>Vehicle No</span>
+      <span><span class="legend-dot" style="background:#d1f5e0;border:1px solid #28a745;"></span>Normal Fill</span>
+      <span><span class="legend-dot" style="background:#fff8e1;border:1px solid #ffc107;"></span>High Fill (&ge;150 L)</span>
+      <span><span class="legend-dot" style="background:#f0f7ff;border:1px solid #1a3a6b;"></span>Total Row</span>
+      <span><span class="legend-dot" style="background:#d4f5e2;border:1px solid #28a745;"></span>Sensor Vehicle</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Vehicle No</th><th>Fill Qty (L)</th><th>Fill Date</th><th>Time</th><th>Sender</th><th>Notes</th></tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
+
+    <!-- RECONCILIATION SECTION -->
+    <div class="recon-wrap" id="reconWrap" style="display:none;">
+      <div class="recon-title">&#128270; Fuel Reconciliation — Manual vs OBD Consumption</div>
+      <div class="recon-hint">
+        <strong>Formula:</strong> &nbsp;
+        <code style="background:#fff;padding:2px 8px;border-radius:4px;border:1px solid #e0c0c0;">
+          Manual Consumption = Opening Balance + Total Fill (all dates) &minus; Last Balance
+        </code>
+        &nbsp;&nbsp;&#128073;&nbsp;
+        If <span style="color:#c0392b;font-weight:700;">Manual &gt; OBD</span> → possible <strong>fuel theft / leakage</strong> &nbsp;|&nbsp;
+        If <span style="color:#7a5300;font-weight:700;">OBD &gt; Manual</span> → possible <strong>sensor error / wrong balance</strong>
+      </div>
+      <div class="recon-table-wrap">
+        <table class="recon-tbl">
+          <thead>
+            <tr>
+              <th>Vehicle No</th>
+              <th class="th-open">Opening Balance (L)<br><small style="font-weight:400;opacity:0.8;">First date balance &#9998;</small></th>
+              <th class="th-fill">Total Fill (L)<br><small style="font-weight:400;opacity:0.8;">Auto from data</small></th>
+              <th class="th-last">Last Balance (L)<br><small style="font-weight:400;opacity:0.8;">Closing stock &#9998;</small></th>
+              <th class="th-man">Manual Consumption (L)<br><small style="font-weight:400;opacity:0.8;">Open + Fill &minus; Last</small></th>
+              <th class="th-obd">OBD Consumption (L)<br><small style="font-weight:400;opacity:0.8;">GPS/Telematics &#9998;</small></th>
+              <th class="th-diff">Difference &amp; Status</th>
+            </tr>
+          </thead>
+          <tbody id="reconBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PAGE 2: VEHICLE SUMMARY -->
+  <div id="page2" style="display:none;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Vehicle No</th><th>No of Fills</th><th>Total Fill (L)</th><th>Avg Fill (L)</th><th>Max Fill (L)</th></tr>
+        </thead>
+        <tbody id="summaryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE 3: PIVOT REPORT -->
+  <div id="page3" style="display:none;">
+    <div class="hint-bar">
+      &#128161; <strong>VEHICLE</strong> in rows &times; <strong>DATE</strong> in columns &nbsp;|&nbsp;
+      Each date = 3 sub-columns: <span style="color:#1a3a6b;font-weight:700;">BALANCE</span> (editable) &bull;
+      <span style="color:#1d6f42;font-weight:700;">FILL</span> (auto) &bull;
+      <span style="color:#7a3900;font-weight:700;">CONSUMED</span> (editable)
+      &nbsp;&nbsp;&#10137;&nbsp;&nbsp;
+      After all dates: &nbsp;
+      <span style="color:#1a3a6b;font-weight:700;">Last Balance</span> (editable) &bull;
+      <span style="color:#c0392b;font-weight:700;">Manual Consumption</span> = Opening Bal + Total Fill &minus; Last Bal &bull;
+      <span style="color:#5a1a8a;font-weight:700;">OBD Consumption</span> (from GPS)
+    </div>
+    <!-- PIVOT DISPLAY CONTROLS -->
+    <div class="pivot-toolbar" id="pivotToolbar">
+      <button class="ptb-reset" onclick="resetPivotDisplay()">&#8635; Reset View</button>
+      <button id="btnShowAll" onclick="showAllVehicles()" style="display:none;align-items:center;gap:6px;background:#1a3a6b;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">👁 Show All</button>
+      <button id="btnTranspose" onclick="toggleTranspose()" style="display:none;background:#5a1a8a;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">↕ Transpose</button>
+      <div class="ptb-divider"></div>
+      <button onclick="showNewSessionPanel()" style="background:#c0392b;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.5px;display:flex;align-items:center;gap:6px;">🔄 New Session</button>
+    </div>
+
+    <!-- NEW SESSION PANEL -->
+    <div id="newSessionPanel" style="display:none;background:#fff;border:2px solid #c0392b;border-radius:10px;padding:18px 20px;margin-bottom:14px;max-width:1100px;box-shadow:0 4px 16px rgba(192,57,43,0.15);">
+      <div style="font-size:13px;font-weight:700;color:#c0392b;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">🔄 Start New Session</div>
+      <div style="font-size:12px;color:#555;margin-bottom:14px;line-height:1.7;">
+        The following values will be <strong>carried forward</strong> to the new session automatically:<br>
+        <span style="color:#1a3a6b;">• End Date/Time → Start Date/Time</span> &nbsp;|&nbsp;
+        <span style="color:#1d6f42;">• Last Balance → Opening Balance (first date)</span>
+      </div>
+      <div id="newSessionPreview" style="overflow-x:auto;margin-bottom:14px;"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button onclick="confirmNewSession()" style="background:#c0392b;color:#fff;border:none;border-radius:7px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">✅ Confirm — Start New Session</button>
+        <button onclick="el('newSessionPanel').style.display='none'" style="background:#fff;color:#666;border:1px solid #d0d8e8;border-radius:7px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">✕ Cancel</button>
+      </div>
+    </div>
+
+    <div class="pivot-scroll">
+      <table class="pivot-tbl" id="pivotTable"></table>
+    </div>
+
+    <!-- TRANSPOSED VIEW (focus mode only) -->
+    <div id="pivotTransposedWrap" style="display:none;">
+      <div style="overflow-x:auto;overflow-y:auto;max-height:72vh;background:#fff;border:1px solid #d0d8e8;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+        <table id="pivotTransposed" style="border-collapse:collapse;font-size:12px;min-width:100%;"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div id="emptyMsg" style="display:none;">
+    <div class="empty">
+      <div class="icon">&#9981;</div>
+      <p>No valid entries found. Check your input format.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const MF = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const MS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  let parsedData = [];
+  const balData = {}, consData = {}, obdFillData = {};
+
+  /* ══════════════════════════════════════════
+     SESSION PERSISTENCE  (localStorage)
+  ══════════════════════════════════════════ */
+  const SESSION_KEY = 'ffd_session_v1';
+
+  function saveSession(){
+    try {
+      const sess = {
+        parsedData,
+        balData, consData, obdFillData,
+        pvLastBal, pvOBD, pvDone, pvRemark, pvStartDT, pvEndDT, pvDevice, pvCarryBal, siteCarryBal,
+        pvDisplay: {...pvDisplay},
+        pumpFillData: window.pumpFillData||{},
+        waInput: document.getElementById('wa-input')?.value||'',
+        colVeh:  document.getElementById('c-veh')?.value||'',
+        colQty:  document.getElementById('c-qty')?.value||'',
+        colDate: document.getElementById('c-date')?.value||'',
+        colTime: document.getElementById('c-time')?.value||'',
+        colNotes:document.getElementById('c-notes')?.value||'',
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+    } catch(e){ console.warn('Session save failed', e); }
+  }
+
+  function loadSession(){
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if(!raw) return false;
+      const sess = JSON.parse(raw);
+      if(!sess || !sess.parsedData) return false;
+
+      // Restore all stores
+      parsedData = sess.parsedData || [];
+      Object.assign(balData,     sess.balData     || {});
+      Object.assign(consData,    sess.consData    || {});
+      Object.assign(obdFillData, sess.obdFillData || {});
+      Object.assign(pvLastBal,   sess.pvLastBal   || {});
+      Object.assign(pvOBD,       sess.pvOBD       || {});
+      Object.assign(pvDone,      sess.pvDone      || {});
+      Object.assign(pvRemark,    sess.pvRemark    || {});
+      Object.assign(pvStartDT,   sess.pvStartDT   || {});
+      Object.assign(pvEndDT,     sess.pvEndDT     || {});
+      Object.assign(pvDevice,    sess.pvDevice    || {});
+      Object.assign(pvCarryBal,  sess.pvCarryBal  || {});
+      Object.assign(siteCarryBal,sess.siteCarryBal|| {});
+      if(sess.pvDisplay) Object.assign(pvDisplay, sess.pvDisplay);
+      window.pumpFillData = sess.pumpFillData || {};
+
+      // Restore input fields
+      if(sess.waInput)   document.getElementById('wa-input').value  = sess.waInput;
+      if(sess.colVeh)    document.getElementById('c-veh').value     = sess.colVeh;
+      if(sess.colQty)    document.getElementById('c-qty').value     = sess.colQty;
+      if(sess.colDate)   document.getElementById('c-date').value    = sess.colDate;
+      if(sess.colTime)   document.getElementById('c-time').value    = sess.colTime;
+      if(sess.colNotes)  document.getElementById('c-notes').value   = sess.colNotes;
+
+      return sess.savedAt;
+    } catch(e){ console.warn('Session load failed', e); return false; }
+  }
+
+  function clearSession(){
+    if(!confirm('Clear all session data? This cannot be undone.')) return;
+    localStorage.removeItem(SESSION_KEY);
+    parsedData = [];
+    Object.keys(balData).forEach(k=>delete balData[k]);
+    Object.keys(consData).forEach(k=>delete consData[k]);
+    Object.keys(obdFillData).forEach(k=>delete obdFillData[k]);
+    Object.keys(pvLastBal).forEach(k=>delete pvLastBal[k]);
+    Object.keys(pvOBD).forEach(k=>delete pvOBD[k]);
+    Object.keys(pvDone).forEach(k=>delete pvDone[k]);
+    Object.keys(pvRemark).forEach(k=>delete pvRemark[k]);
+    Object.keys(pvDevice).forEach(k=>delete pvDevice[k]);
+    Object.keys(pvCarryBal).forEach(k=>delete pvCarryBal[k]);
+    Object.keys(siteCarryBal).forEach(k=>delete siteCarryBal[k]);
+    window.pumpFillData = {};
+    ['c-veh','c-qty','c-date','c-time','c-notes'].forEach(id=>el(id).value='');
+    el('wa-input').value='';
+    el('pageNav').style.display='none';
+    [1,2,3].forEach(i=>el('page'+i).style.display='none');
+    el('emptyMsg').style.display='none';
+    updateSessionBadge(null);
+  }
+
+  function updateSessionBadge(savedAt){
+    const badge = el('sessionBadge');
+    if(!badge) return;
+    if(savedAt){
+      const d = new Date(savedAt);
+      const timeStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      const dateStr = d.toLocaleDateString([], {day:'2-digit', month:'short'});
+      badge.innerHTML = `&#128190; Saved ${dateStr} ${timeStr}`;
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.innerHTML = '&#128190; No saved session';
+      badge.style.display = 'inline-flex';
+    }
+  }
+
+  // Auto-save on any data change — debounced 800ms
+  let _saveTimer = null;
+  function scheduleSave(){
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(()=>{ saveSession(); updateSessionBadge(new Date().toISOString()); }, 800);
+  }
+
+  // ── SENSOR VEHICLE MASTER LIST ──
+  // Key = last 4 digits (what user types), Value = full registration number
+  const SENSOR_VEHICLES = {
+    '7560': 'CG04NH7560',
+    '6111': 'CG04PB6111',
+    '6112': 'CG04PJ6112',
+    '6115': 'CG04PM6115',
+    '6117': 'CG04PM6117',
+    '6120': 'CG04PN6120',
+    '5211': 'CG10BL5211',
+    '5111': 'CG10BM5111',
+    '2153': 'CG10BT2153',
+    '2553': 'CG10BT2553',
+    '3053': 'CG10BT3053',
+    '3153': 'CG10BT3153',
+    '3353': 'CG10BT3353',
+    '4053': 'CG10BT4053',
+    '6299': 'CG11BH6299',
+    '7899': 'CG11BL7899',
+    '7336': 'CG22X7336',
+  };
+
+  function isSensor(veh) { return !!SENSOR_VEHICLES[veh]; }
+  function fullName(veh) { return SENSOR_VEHICLES[veh] || veh; }
+
+
+  function switchInputTab(id, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function switchPage(n) {
+    [1,2,3].forEach(i => {
+      document.getElementById('page'+i).style.display = i===n ? 'block' : 'none';
+      document.getElementById('pnav'+i).classList.toggle('active', i===n);
+    });
+  }
+
+  function today() { const d=new Date(); return {day:d.getDate(),month:d.getMonth(),year:d.getFullYear()}; }
+
+  function parseDate(s) {
+    if (!s||!s.trim()) return today();
+    const m=s.trim().match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+    if (m) { let y=parseInt(m[3]); if(y<100) y+=2000; return {day:parseInt(m[1]),month:parseInt(m[2])-1,year:y}; }
+    const d=new Date(s); if(!isNaN(d)) return {day:d.getDate(),month:d.getMonth(),year:d.getFullYear()};
+    return today();
+  }
+
+  function fmt(d)      { return d ? String(d.day).padStart(2,'0')+'-'+MS[d.month]+'-'+d.year : '—'; }
+  function fmtLbl(d)   { return d ? String(d.day).padStart(2,'0')+'-'+MF[d.month] : '—'; }
+  function fmtFull(d)  { return d ? String(d.day).padStart(2,'0')+' '+MF[d.month]+' '+d.year : ''; }
+  function dsort(a,b)  { return (a.year*10000+a.month*100+a.day)-(b.year*10000+b.month*100+b.day); }
+
+  function decodeColumns() {
+    const vehs=el('c-veh').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    const qtys=el('c-qty').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    const dates=el('c-date').value.split('\n').map(s=>s.trim());
+    const times=el('c-time').value.split('\n').map(s=>s.trim());
+    const notes=el('c-notes').value.split('\n').map(s=>s.trim());
+    parsedData=[];
+    for(let i=0;i<Math.max(vehs.length,qtys.length);i++){
+      const v=(vehs[i]||'').replace(/\D/g,'');
+      const q=(qtys[i]||'').replace(/[^\d.]/g,'');
+      if(!v||!q) continue;
+      const qty=parseFloat(q);
+      if(isNaN(qty)) continue;
+      parsedData.push({vehicle:v,qty,date:parseDate(dates[i]),time:times[i]||'',sender:'',notes:notes[i]||''});
+    }
+    render(); scheduleSave();
+  }
+
+  function decodeWA() {
+    parsedData=[];
+    const raw=el('wa-input').value.trim();
+    if(raw) raw.split('\n').forEach(l=>{ const e=parseWA(l.trim()); if(e) parsedData.push(e); });
+    render(); scheduleSave();
+  }
+
+  function parseWA(line) {
+    let date=null,time=null,sender=null,payload=line;
+    const m=line.match(/^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\]\s*([^:]+):\s*(.+)$/i);
+    if(m){
+      const[,dd,mm,yy,t,sn,c]=m;
+      const year=yy.length===2?2000+parseInt(yy):parseInt(yy);
+      date={day:parseInt(dd),month:parseInt(mm)-1,year}; time=t.trim(); sender=sn.trim(); payload=c.trim();
+    }
+    const pm=payload.match(/^(\d{4})[.\s]*[\s,]*(\d+\.?\d*)\s*(?:li[ts]a?r?|L|ltr)?(?:\s+(.+))?$/i);
+    if(!pm) return null;
+    const qty=parseFloat(pm[2]); if(isNaN(qty)) return null;
+    return {vehicle:pm[1],qty,date:date||today(),time:time||'',sender:sender||'',notes:(pm[3]||'').trim()};
+  }
+
+  function el(id){ return document.getElementById(id); }
+
+  function render() {
+    el('emptyMsg').style.display='none';
+    [1,2,3].forEach(i=>el('page'+i).style.display='none');
+    if(!parsedData.length){
+      el('pageNav').style.display='none';
+      el('emptyMsg').style.display='block';
+      return;
+    }
+    el('pageNav').style.display='block';
+    renderP1(); renderP2(); renderP3(); setTimeout(applyPivotDisplay,50);
+    const vs=new Set(parsedData.map(e=>e.vehicle));
+    const ds=new Set(parsedData.map(e=>fmt(e.date)));
+    el('badge1').textContent=parsedData.length;
+    el('badge2').textContent=vs.size+' veh';
+    const dm3={};
+    parsedData.forEach(e=>{ const k=fmt(e.date); dm3[k]=1; });
+    const allD=Object.keys(dm3);
+    let rangeDates=allD.length;
+    if(allD.length>=2){
+      const sorted3=Object.entries(dm3).sort((a,b)=>{
+        const da=parsedData.find(e=>fmt(e.date)===a[0])?.date;
+        const db=parsedData.find(e=>fmt(e.date)===b[0])?.date;
+        return da&&db?dsort(da,db):0;
+      });
+      const fd=parsedData.find(e=>fmt(e.date)===sorted3[0][0])?.date;
+      const ld=parsedData.find(e=>fmt(e.date)===sorted3[sorted3.length-1][0])?.date;
+      if(fd&&ld){ const c=new Date(fd.year,fd.month,fd.day),en=new Date(ld.year,ld.month,ld.day); rangeDates=Math.round((en-c)/(86400000))+1; }
+    }
+    el('badge3').textContent=rangeDates+' dates';
+    switchPage(1);
+  }
+
+  /* PAGE 1 — sorted by date ASC then vehicle A→Z, with date-group subtotal rows */
+  function renderP1(){
+    const tb=el('resultBody'); tb.innerHTML='';
+
+    // Sort: primary = date ascending, secondary = vehicle A→Z
+    const sorted=[...parsedData].sort((a,b)=>{
+      const dd=dsort(a.date,b.date);
+      if(dd!==0) return dd;
+      return a.vehicle.localeCompare(b.vehicle,undefined,{numeric:true});
+    });
+
+    // Group by date key
+    const groups={}; // dateKey -> [{entry}]
+    const dateOrder=[];
+    sorted.forEach(e=>{
+      const k=fmt(e.date);
+      if(!groups[k]){ groups[k]=[]; dateOrder.push(k); }
+      groups[k].push(e);
+    });
+
+    let rowNum=1; let grandTotal=0; const vs=new Set();
+
+    // Date-group color cycle for the header stripe
+    const grpColors=['#1a3a6b','#1d6f42','#7a3900','#5a1a8a','#7a1a1a','#006080'];
+
+    dateOrder.forEach((dateKey,gi)=>{
+      const entries=groups[dateKey];
+      const grpColor=grpColors[gi%grpColors.length];
+
+      // ── DATE HEADER STRIPE ──
+      const thdr=document.createElement('tr');
+      thdr.innerHTML=`<td colspan="7" style="
+        background:${grpColor};color:#fff;font-size:11px;font-weight:700;
+        letter-spacing:2px;text-transform:uppercase;padding:7px 16px;
+        border-top:2px solid ${grpColor};">
+        &#128197; ${entries[0]?fmtLbl(entries[0].date):''}
+        <span style="font-size:10px;opacity:0.7;margin-left:10px;">${entries.length} fill${entries.length>1?'s':''}</span>
+      </td>`;
+      tb.appendChild(thdr);
+
+      let dateTotal=0;
+      entries.forEach(e=>{
+        dateTotal+=e.qty; grandTotal+=e.qty; vs.add(e.vehicle);
+        const high=e.qty>=150;
+        const tr=document.createElement('tr'); if(high) tr.className='high-fill';
+        tr.innerHTML=`
+          <td class="row-idx">${rowNum++}</td>
+          <td><span class="badge-veh">${e.vehicle}</span></td>
+          <td><span class="qty-val${high?' high':''}">${e.qty.toFixed(2)}</span> <small style="color:#aaa;">L</small>${high?' <span style="font-size:10px;background:#ff9800;color:#fff;padding:1px 6px;border-radius:10px;margin-left:4px;font-weight:700;">HIGH</span>':''}</td>
+          <td class="date-val">${fmt(e.date)}</td>
+          <td class="time-val">${e.time||'—'}</td>
+          <td class="sender-val">${e.sender||'—'}</td>
+          <td class="notes-val">${e.notes||'—'}</td>`;
+        tb.appendChild(tr);
+      });
+
+      // ── DATE SUBTOTAL ROW ──
+      const tsub=document.createElement('tr');
+      tsub.style.cssText='background:#f0f7ff;border-top:1px dashed #a0b8d8;border-bottom:2px solid '+grpColor+';';
+      tsub.innerHTML=`
+        <td colspan="2" style="text-align:right;font-size:11px;font-weight:700;letter-spacing:1.5px;color:${grpColor};padding:9px 14px;text-transform:uppercase;">
+          ${fmtLbl(entries[0].date)} Total
+        </td>
+        <td style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;color:#1d6f42;padding:9px 14px;">
+          ${dateTotal.toFixed(2)} <small style="font-size:10px;color:#aaa;font-weight:400;">L</small>
+          <span style="font-size:10px;background:${grpColor};color:#fff;padding:1px 8px;border-radius:10px;margin-left:6px;">${entries.length} fills</span>
+        </td>
+        <td colspan="4" style="padding:9px 14px;font-size:11px;color:#8899aa;">
+          Avg: <strong style="color:${grpColor};">${(dateTotal/entries.length).toFixed(1)} L</strong>
+          &nbsp;&nbsp; Max: <strong style="color:#e67e00;">${Math.max(...entries.map(e=>e.qty)).toFixed(1)} L</strong>
+        </td>`;
+      tb.appendChild(tsub);
+    });
+
+    // ── GRAND TOTAL ROW ──
+    const tgrand=document.createElement('tr'); tgrand.className='total-row';
+    tgrand.innerHTML=`
+      <td colspan="2" style="text-align:right;font-size:12px;letter-spacing:1px;color:#1a3a6b;padding:12px 14px;">GRAND TOTAL</td>
+      <td style="color:#1d6f42;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800;padding:12px 14px;">
+        ${grandTotal.toFixed(2)} L
+      </td>
+      <td colspan="4" style="padding:12px 14px;font-size:12px;color:#6b7a99;">
+        ${sorted.length} fills across ${dateOrder.length} date${dateOrder.length>1?'s':''}
+      </td>`;
+    tb.appendChild(tgrand);
+
+    el('statsRow').innerHTML=`
+      <div class="stat-card s1"><div class="num">${sorted.length}</div><div class="lbl">Total Entries</div></div>
+      <div class="stat-card s2"><div class="num">${grandTotal.toFixed(1)}</div><div class="lbl">Total Litres</div></div>
+      <div class="stat-card s3"><div class="num">${vs.size}</div><div class="lbl">Vehicles</div></div>
+      <div class="stat-card s4"><div class="num">${(grandTotal/sorted.length).toFixed(1)}</div><div class="lbl">Avg / Fill</div></div>`;
+
+    // Build per-vehicle fill totals for recon
+    const vFillTotals={};
+    parsedData.forEach(e=>{ vFillTotals[e.vehicle]=(vFillTotals[e.vehicle]||0)+e.qty; });
+    renderRecon(vFillTotals);
+  }
+
+  /* ─── RECONCILIATION STORES ─── */
+  const reconOpen={};  // vehicle -> opening balance
+  const reconLast={};  // vehicle -> last balance
+  const reconOBD={};   // vehicle -> OBD consumption
+
+  /* ─── RECONCILIATION TABLE ─── */
+  function renderRecon(vFillTotals){
+    const tb=el('reconBody'); tb.innerHTML='';
+    const sVeh=Object.keys(vFillTotals).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+    el('reconWrap').style.display='block';
+
+    let totFill=0, totManCons=0, totOBD=0, hasManCons=false, hasOBD=false;
+
+    sVeh.forEach(veh=>{
+      const fill=vFillTotals[veh];
+      totFill+=fill;
+      const tr=document.createElement('tr');
+
+      // Opening Balance input
+      const openVal=reconOpen[veh]!=null?reconOpen[veh]:'';
+      // Last Balance input
+      const lastVal=reconLast[veh]!=null?reconLast[veh]:'';
+      // OBD input
+      const obdVal=reconOBD[veh]!=null?reconOBD[veh]:'';
+
+      // Manual consumption = Opening + Fill - Last
+      let manCons=null, diff=null, diffStatus='na';
+      if(reconOpen[veh]!=null && reconLast[veh]!=null){
+        manCons=reconOpen[veh]+fill-reconLast[veh];
+        hasManCons=true; totManCons+=manCons;
+        if(reconOBD[veh]!=null){
+          diff=manCons-reconOBD[veh];
+          hasOBD=true; totOBD+=reconOBD[veh];
+          if(Math.abs(diff)<0.5) diffStatus='ok';
+          else if(diff>0) diffStatus='theft';
+          else diffStatus='sensor';
+        }
+      }
+
+      const diffPill=diff!=null
+        ? `<span class="diff-pill diff-${diffStatus}">${
+            diffStatus==='ok'?'&#10003; MATCH'
+            :diffStatus==='theft'?`&#9650; ${diff.toFixed(1)} L THEFT?`
+            :`&#9660; ${Math.abs(diff).toFixed(1)} L SENSOR?`
+          }</span>`
+        : '<span class="diff-pill diff-na">— Enter Values</span>';
+
+      tr.innerHTML=`
+        <td><span class="badge-veh">${veh}</span></td>
+        <td>
+          <input type="number" step="0.01" class="recon-inp open" placeholder="0.00"
+            value="${openVal}" data-veh="${veh}" data-type="open"
+            onchange="reconChange(this)" />
+        </td>
+        <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1d6f42;font-size:14px;">${fill.toFixed(2)}</td>
+        <td>
+          <input type="number" step="0.01" class="recon-inp last" placeholder="0.00"
+            value="${lastVal}" data-veh="${veh}" data-type="last"
+            onchange="reconChange(this)" />
+        </td>
+        <td style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:${manCons!=null?'#e67e00':'#ccc'};">
+          ${manCons!=null?manCons.toFixed(2):'—'}
+        </td>
+        <td>
+          <input type="number" step="0.01" class="recon-inp obd" placeholder="0.00"
+            value="${obdVal}" data-veh="${veh}" data-type="obd"
+            onchange="reconChange(this)" />
+        </td>
+        <td>${diffPill}</td>`;
+      tb.appendChild(tr);
+    });
+
+    // TOTAL row
+    const trT=document.createElement('tr'); trT.className='recon-total-row';
+    trT.innerHTML=`
+      <td><strong>TOTAL</strong></td>
+      <td style="color:#6b7a99;font-size:12px;">—</td>
+      <td style="color:#1d6f42;font-size:15px;">${totFill.toFixed(2)} L</td>
+      <td style="color:#6b7a99;font-size:12px;">—</td>
+      <td style="color:${hasManCons?'#e67e00':'#ccc'};font-size:15px;">${hasManCons?totManCons.toFixed(2)+' L':'—'}</td>
+      <td style="color:${hasOBD?'#5a1a8a':'#ccc'};font-size:15px;">${hasOBD?totOBD.toFixed(2)+' L':'—'}</td>
+      <td style="font-size:12px;color:#6b7a99;">${hasManCons&&hasOBD?`Net diff: <strong style="color:${totManCons-totOBD>0?'#c0392b':'#27ae60'};">${(totManCons-totOBD).toFixed(2)} L</strong>`:'—'}</td>`;
+    tb.appendChild(trT);
+  }
+
+  function reconChange(inp){
+    const veh=inp.dataset.veh, type=inp.dataset.type;
+    const val=inp.value!==''?parseFloat(inp.value):null;
+    if(type==='open') reconOpen[veh]=val;
+    else if(type==='last') reconLast[veh]=val;
+    else if(type==='obd') reconOBD[veh]=val;
+    // Rebuild recon from current fill totals
+    const vFillTotals={};
+    parsedData.forEach(e=>{ vFillTotals[e.vehicle]=(vFillTotals[e.vehicle]||0)+e.qty; });
+    renderRecon(vFillTotals);
+  }
+
+  /* PAGE 2 */
+  function renderP2(){
+    const tb=el('summaryBody'); tb.innerHTML='';
+    const vm={};
+    parsedData.forEach(e=>{ if(!vm[e.vehicle]) vm[e.vehicle]=[]; vm[e.vehicle].push(e.qty); });
+    let grand=0;
+    Object.entries(vm).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).forEach(([v,qs],i)=>{
+      const tot=qs.reduce((a,b)=>a+b,0); grand+=tot;
+      const avg=(tot/qs.length).toFixed(2); const max=Math.max(...qs);
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td class="row-idx">${i+1}</td>
+        <td><span class="badge-veh">${v}</span></td>
+        <td style="text-align:center;font-family:'JetBrains Mono',monospace;">${qs.length}</td>
+        <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:#1d6f42;">${tot.toFixed(2)}</td>
+        <td style="text-align:center;font-family:'JetBrains Mono',monospace;color:#1a3a6b;">${avg}</td>
+        <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:${max>=150?'#e67e00':'#1d6f42'};">${max.toFixed(2)}</td>`;
+      tb.appendChild(tr);
+    });
+    const tr=document.createElement('tr'); tr.className='total-row';
+    tr.innerHTML=`<td colspan="3" style="text-align:right;font-size:12px;letter-spacing:1px;color:#1a3a6b;">GRAND TOTAL</td><td style="font-family:'JetBrains Mono',monospace;color:#1d6f42;font-size:15px;">${grand.toFixed(2)} L</td><td colspan="2"></td>`;
+    tb.appendChild(tr);
+  }
+
+  /* PAGE 3: PIVOT */
+  // Stores for pivot recon columns (per vehicle)
+  const pvLastBal={};  // last balance entered
+  const pvOBD={};      // OBD consumption entered
+  const pvRemark={};   // remark text
+  const pvStartDT={};  // start date-time per vehicle
+  const pvEndDT={};    // end date-time per vehicle
+  const pvDone={};     // checkbox done state
+  const pvDevice={};   // device installed? true/false per vehicle
+  const pvCarryBal={};     // carry-forward opening balance from previous session
+  const siteCarryBal={};   // same for site entry
+
+  // ── SITE ENTRY stores — completely independent from CALCULATED ──
+  const siteBalData={};   // site-reported balance per date
+  const sitePumpData={};  // site-reported pump fill per date
+  const siteConsData={};  // site-reported consumed per date
+  const siteObdFData={};  // site-reported OBD fill per date
+  const siteLastBal={};   // site-reported last balance
+  const siteOBD={};       // site-reported OBD consumption
+  const siteRemark={};    // site remark
+  const siteStartDT={};   // site start datetime
+  const siteEndDT={};     // site end datetime
+
+  function applyRowDone(veh, done, isSensor){
+    const tbl=document.getElementById('pivotTable');
+    if(!tbl) return;
+    tbl.querySelectorAll(`tr[data-veh="${veh}"]`).forEach(tr=>{
+      const cells=[...tr.cells];
+      if(done){
+        cells.forEach(c=>{
+          c.style.background='#1a2233';
+          c.style.color='#fff';
+          c.style.opacity='1';
+        });
+        if(cells[1]) cells[1].style.background= isSensor ? '#1a3a2e' : '#2a2010';
+        if(cells[0]) cells[0].style.background='#1a2233';
+        tr.style.outline='2px solid #28a745';
+        tr.style.outlineOffset='-2px';
+      } else {
+        cells.forEach(c=>{ c.style.background=''; c.style.color=''; c.style.opacity=''; });
+        tr.style.outline='';
+        if(cells[1]) cells[1].style.background= isSensor ? '#d4f5e2' : '#fff3cd';
+        if(cells[0]) cells[0].style.background='transparent';
+      }
+    });
+  }
+
+  function renderP3(){
+    const dm={}, vs=new Set();
+    parsedData.forEach(e=>{ const k=fmt(e.date); dm[k]={label:fmtLbl(e.date),date:e.date}; vs.add(e.vehicle); });
+
+    // ── AUTO-FILL ALL DATES IN RANGE (first → last, no gaps) ──
+    const existingDates=Object.entries(dm).sort((a,b)=>dsort(a[1].date,b[1].date));
+    if(existingDates.length>=2){
+      const first=existingDates[0][1].date;
+      const last=existingDates[existingDates.length-1][1].date;
+      // iterate every calendar day in range
+      const cur=new Date(first.year, first.month, first.day);
+      const end=new Date(last.year,  last.month,  last.day);
+      while(cur<=end){
+        const d={day:cur.getDate(), month:cur.getMonth(), year:cur.getFullYear()};
+        const k=fmt(d);
+        if(!dm[k]) dm[k]={label:fmtLbl(d), date:d, empty:true};
+        cur.setDate(cur.getDate()+1);
+      }
+    }
+
+    const sDates=Object.entries(dm).sort((a,b)=>dsort(a[1].date,b[1].date));
+    const sVeh=[...vs].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+
+    // Pump fill from parsed data
+    const fm={};
+    parsedData.forEach(e=>{ const k=fmt(e.date); if(!fm[e.vehicle]) fm[e.vehicle]={}; fm[e.vehicle][k]=(fm[e.vehicle][k]||0)+e.qty; });
+
+    // Init all stores
+    sVeh.forEach(v=>{
+      if(!balData[v])     balData[v]={};
+      if(!consData[v])    consData[v]={};
+      if(!obdFillData[v]) obdFillData[v]={};
+      if(pvLastBal[v]===undefined) pvLastBal[v]=null;
+      if(pvOBD[v]===undefined)     pvOBD[v]=null;
+      if(pvDone[v]===undefined)    pvDone[v]=false;
+      if(pvRemark[v]===undefined)  pvRemark[v]='';
+      if(pvStartDT[v]===undefined) pvStartDT[v]='';
+      if(pvEndDT[v]===undefined)   pvEndDT[v]='';
+      if(pvDevice[v]===undefined)  pvDevice[v]=isSensor(v);
+      // Init SITE ENTRY stores
+      if(!siteBalData[v])   siteBalData[v]={};
+      if(!sitePumpData[v])  sitePumpData[v]={};
+      if(!siteConsData[v])  siteConsData[v]={};
+      if(!siteObdFData[v])  siteObdFData[v]={};
+      if(siteLastBal[v]===undefined) siteLastBal[v]=null;
+      if(siteOBD[v]===undefined)     siteOBD[v]=null;
+      if(siteRemark[v]===undefined)  siteRemark[v]='';
+      if(siteStartDT[v]===undefined) siteStartDT[v]='';
+      if(siteEndDT[v]===undefined)   siteEndDT[v]='';
+    });
+
+    // ── CARRY-FORWARD: auto-seed first-date opening balance from previous session ──
+    if(sDates.length>0){
+      const fdk=sDates[0][0];
+      sVeh.forEach(v=>{
+        if(pvCarryBal[v]!=null && (balData[v][fdk]==null||balData[v][fdk]===undefined)){
+          balData[v][fdk]=pvCarryBal[v];
+        }
+        if(siteCarryBal[v]!=null && (siteBalData[v][fdk]==null||siteBalData[v][fdk]===undefined)){
+          siteBalData[v][fdk]=siteCarryBal[v];
+        }
+      });
+    }
+
+    // Pump fill editable store (pre-seeded from data, user can override)
+    if(!window.pumpFillData) window.pumpFillData={};
+    sVeh.forEach(v=>{
+      if(!window.pumpFillData[v]) window.pumpFillData[v]={};
+      sDates.forEach(([key])=>{
+        const auto=fm[v]&&fm[v][key]?fm[v][key]:null;
+        if(window.pumpFillData[v][key]===undefined && auto!==null)
+          window.pumpFillData[v][key]=auto;
+        // Also seed SITE ENTRY pump fill from same parsed data (only if not manually overridden)
+        if(!sitePumpData[v]) sitePumpData[v]={};
+        if(sitePumpData[v][key]===undefined && auto!==null)
+          sitePumpData[v][key]=auto;
+      });
+    });
+    const pfData = window.pumpFillData;
+
+    // Helper: parse numeric value, return null for text/empty
+    const numVal = v => {
+      if(v==null||v==='') return null;
+      const n=parseFloat(v);
+      return isNaN(n)?null:n;
+    };
+
+    const firstDateKey = sDates.length>0 ? sDates[0][0] : null;
+    const COLS = 4; // BALANCE, PUMP FILL, OBD FILL, CONSUMED
+
+    const pals=[
+      {bg:'#1a3a6b',fg:'#fff'},{bg:'#1d6f42',fg:'#fff'},{bg:'#7a3900',fg:'#fff'},
+      {bg:'#5a1a8a',fg:'#fff'},{bg:'#7a1a1a',fg:'#fff'},{bg:'#006080',fg:'#fff'}
+    ];
+    const C_LAST='#1a3a6b', C_MAN='#c0392b', C_OBD='#5a1a8a';
+
+    const tbl=el('pivotTable'); tbl.innerHTML='';
+
+    /* ── ROW 1: headers ── */
+    const r1=tbl.insertRow();
+
+    // ✓ DONE checkbox col (rowspan 2)
+    const thChk=document.createElement('th'); thChk.rowSpan=2;
+    thChk.style.cssText='background:#1a2233;color:#fff;font-size:9px;font-weight:700;letter-spacing:1px;padding:6px 4px;text-align:center;white-space:nowrap;position:sticky;left:0;z-index:4;min-width:28px;vertical-align:middle;';
+    thChk.innerHTML='&#10003;<br><small style="font-size:8px;opacity:0.7;">DONE</small>';
+    r1.appendChild(thChk);
+
+    // VEHICLE NUMBER (rowspan 2)
+    const thV=document.createElement('th'); thV.rowSpan=2; thV.className='ph-veh';
+    thV.style.cssText='background:#1a2233;color:#fff;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:14px 16px;text-align:center;white-space:nowrap;position:sticky;left:36px;z-index:4;min-width:140px;vertical-align:middle;';
+    thV.textContent='VEHICLE NUMBER';
+    r1.appendChild(thV);
+
+    // START DATE-TIME header (rowspan 2) — before dates
+    const thStart=document.createElement('th'); thStart.rowSpan=2;
+    thStart.style.cssText='background:#1a2233;color:#fff;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:8px 8px;text-align:center;white-space:nowrap;min-width:168px;vertical-align:middle;border-right:2px solid rgba(255,255,255,0.15);';
+    thStart.innerHTML='&#9654; Start<br><small style="font-size:8px;opacity:0.75;font-weight:400;">Date &amp; Time</small>';
+    r1.appendChild(thStart);
+
+    // Date group headers (colspan 4 each)
+    sDates.forEach(([,info],di)=>{
+      const th=document.createElement('th'); th.colSpan=COLS; th.className='ph-date';
+      th.style.background='#1a2233'; th.style.color='#fff';
+      th.style.borderLeft='3px solid rgba(255,255,255,0.15)'; th.style.borderRight='3px solid rgba(255,255,255,0.15)';
+      th.textContent=info.label; r1.appendChild(th);
+    });
+
+    // END DATE-TIME header (rowspan 2) — after dates
+    const thEnd=document.createElement('th'); thEnd.rowSpan=2;
+    thEnd.style.cssText='background:#1a2233;color:#fff;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:8px 8px;text-align:center;white-space:nowrap;min-width:168px;vertical-align:middle;border-left:2px solid rgba(255,255,255,0.15);border-right:3px solid #ffc107;';
+    thEnd.innerHTML='&#9646; End<br><small style="font-size:8px;opacity:0.75;font-weight:400;">Date &amp; Time</small>';
+    r1.appendChild(thEnd);
+
+    // FUEL RECONCILIATION (colspan 4 now with remark)
+    const thRec=document.createElement('th'); thRec.colSpan=4; thRec.className='ph-date';
+    thRec.style.cssText='background:#1a2233;color:#fff;border-left:3px solid #ffc107;font-size:11px;';
+    thRec.innerHTML='&#128270; FUEL RECONCILIATION';
+    r1.appendChild(thRec);
+
+    /* ── ROW 2: sub-headers ── */
+    const r2=tbl.insertRow();
+    const subDefs=[
+      {lbl:'BALANCE',   cls:'bal'},
+      {lbl:'PUMP FILL', cls:'fill'},
+      {lbl:'OBD FILL',  cls:'fill'},
+      {lbl:'CONSUMED',  cls:'cons'},
+    ];
+    sDates.forEach(([,],di)=>{
+      subDefs.forEach((s,si)=>{
+        const th=document.createElement('th');
+        th.style.cssText=`background:#1a2233;color:#fff;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:8px 8px;text-align:center;white-space:nowrap;border-bottom:2px solid rgba(255,255,255,0.1);${si===0?'border-left:1px solid rgba(255,255,255,0.15);':''}${si===COLS-1?'border-right:1px solid rgba(255,255,255,0.15);':'border-right:1px solid rgba(255,255,255,0.08);'}`;
+        th.textContent=s.lbl;
+        r2.appendChild(th);
+      });
+    });
+    // Recon sub-headers
+    [{lbl:'Last Balance',hint:'Closing stock ✎',left:true},
+     {lbl:'Manual Consumption',hint:'Open + PumpFill − Last'},
+     {lbl:'OBD Consumption',hint:'GPS/Telematics ✎'},
+     {lbl:'Remarks',hint:'Notes / observations'}
+    ].forEach((s,i)=>{
+      const th=document.createElement('th');
+      th.style.cssText=`background:#1a2233;color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:8px 10px;text-align:center;white-space:nowrap;${s.left?'border-left:3px solid #ffc107;':''}border-right:1px solid rgba(255,255,255,0.1);`;
+      th.innerHTML=`${s.lbl}<br><small style="font-weight:400;opacity:0.6;">${s.hint}</small>`;
+      r2.appendChild(th);
+    });
+
+    // ── FREEZE HEADER ROWS (sticky) ──
+    [...r1.children].forEach(th=>{
+      th.style.position='sticky';
+      th.style.top='0';
+      th.style.zIndex= (th.style.zIndex&&parseInt(th.style.zIndex)>=4) ? th.style.zIndex : '5';
+    });
+    [...r2.children].forEach(th=>{
+      th.style.position='sticky';
+      th.style.top='44px';
+      th.style.zIndex='5';
+    });
+
+    /* ── DATA ROWS ── */
+    sVeh.forEach(veh=>{
+      const tr=tbl.insertRow();
+      tr.dataset.veh=veh;
+      const isSen=pvDevice[veh]===true;
+
+      // CHECKBOX
+      const tdChk=tr.insertCell();
+      tdChk.style.cssText='text-align:center;vertical-align:middle;padding:3px 5px;background:transparent;border-right:1px solid #e0e8f0;position:sticky;left:0;z-index:3;min-width:28px;';
+      const chk=document.createElement('input'); chk.type='checkbox';
+      chk.style.cssText='width:16px;height:16px;cursor:pointer;accent-color:#1d6f42;';
+      if(pvDone[veh]) chk.checked=true;
+      chk.addEventListener('change',()=>{ pvDone[veh]=chk.checked; applyRowDone(veh,chk.checked,pvDevice[veh]===true); scheduleSave(); });
+      tdChk.appendChild(chk);
+
+      // VEHICLE — CALCULATED row
+      const tdV=tr.insertCell();
+      const vLabel=pvDevice[veh]?fullName(veh):veh;
+      const vBg=pvDevice[veh]?'#d4f5e2':'#fff3cd';
+      const vBorder=pvDevice[veh]?'#28a745':'#ffc107';
+      const vColor=pvDevice[veh]?'#1a6b3a':'#7a5300';
+      tdV.style.cssText=`font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;background:${vBg};color:${vColor};text-align:center;padding:4px 8px;border-right:3px solid ${vBorder};white-space:nowrap;position:sticky;left:36px;z-index:2;border-bottom:1px solid #e8e0b0;min-width:130px;vertical-align:middle;`;
+
+      // Device toggle button
+      const devBtn=document.createElement('button');
+      devBtn.style.cssText=`display:block;margin:4px auto 2px;padding:2px 8px;border-radius:10px;border:none;cursor:pointer;font-size:9px;font-weight:700;letter-spacing:0.8px;font-family:'Inter',sans-serif;transition:all 0.15s;`
+      function refreshDevBtn(){
+        const on=pvDevice[veh]===true;
+        devBtn.textContent=on?'📡 DEVICE ON':'📵 NO DEVICE';
+        devBtn.style.background=on?'#28a745':'#aaa';
+        devBtn.style.color='#fff';
+      }
+      refreshDevBtn();
+      devBtn.addEventListener('click',()=>{
+        pvDevice[veh]=!pvDevice[veh];
+        scheduleSave();
+        renderP3(); // re-render with updated state
+      });
+
+      tdV.innerHTML=`<div style="font-size:12px;font-weight:800;">${vLabel}</div><div style="font-size:8px;font-weight:700;letter-spacing:1.2px;background:#e67e00;color:#fff;border-radius:3px;padding:1px 5px;margin-top:3px;display:inline-block;">CALCULATED</div>`;
+
+      // Row of buttons: device toggle + focus
+      const btnRow=document.createElement('div');
+      btnRow.style.cssText='display:flex;gap:4px;justify-content:center;margin-top:4px;';
+
+      devBtn.style.cssText=`padding:2px 7px;border-radius:10px;border:none;cursor:pointer;font-size:9px;font-weight:700;letter-spacing:0.8px;font-family:'Inter',sans-serif;transition:all 0.15s;`;
+      refreshDevBtn();
+
+      const focusBtn=document.createElement('button');
+      focusBtn.style.cssText='padding:2px 7px;border-radius:10px;border:none;cursor:pointer;font-size:9px;font-weight:700;font-family:\'Inter\',sans-serif;background:#1a3a6b;color:#fff;transition:all 0.15s;';
+      focusBtn.textContent='👁 FOCUS';
+      focusBtn.addEventListener('click',()=>{
+        focusVeh = (focusVeh===veh) ? null : veh;
+        applyFocus();
+      });
+
+      btnRow.appendChild(devBtn);
+      btnRow.appendChild(focusBtn);
+      tdV.appendChild(btnRow);
+      if(pvDone[veh]) applyRowDone(veh,true,pvDevice[veh]===true);
+
+      // START DATE-TIME cell
+      const tdStart=tr.insertCell();
+      tdStart.className='pv-cell-dt';
+      tdStart.style.borderRight='2px solid #004d66';
+      const inStart=document.createElement('input'); inStart.type='text'; inStart.style.wordBreak='break-word'; inStart.style.whiteSpace='normal';
+      inStart.className='pv-inp-dt';
+      inStart.placeholder='DD/MM/YYYY HH:MM';
+      inStart.style.color='#006080';
+      if(pvStartDT[veh]) inStart.value=pvStartDT[veh];
+      inStart.addEventListener('change',()=>{ pvStartDT[veh]=inStart.value; scheduleSave(); });
+      tdStart.appendChild(inStart);
+
+      // DATE COLUMNS
+      sDates.forEach(([key],di)=>{
+        const pal=pals[di%pals.length];
+        const autoFill=fm[veh]&&fm[veh][key]?fm[veh][key]:null;
+        const isHighFill=autoFill!==null&&autoFill>=150;
+        const isFirstDate=di===0;
+        const isLastDate=di===sDates.length-1;
+
+        // Helper: create a clean cell + input
+        function mkCell(cellClass, inpClass, store, k, placeholder, onCh, extra){
+          const td=tr.insertCell();
+          td.className='pv-cell '+cellClass+(extra?' '+extra:'');
+          if(isFirstDate&&cellClass==='pv-cell-bal') td.style.borderLeft='3px solid '+pal.bg;
+          if(cellClass==='pv-cell-cons') td.style.borderRight='3px solid '+pal.bg;
+          const inp=document.createElement('input');
+          inp.type='number'; inp.step='0.01';
+          inp.className='pv-inp '+inpClass;
+          inp.placeholder=placeholder||'0';
+          const sv=store[veh]&&store[veh][k]!=null?store[veh][k]:null;
+          if(sv!=null){ inp.value=sv; inp.classList.add('has-val'); }
+          inp.addEventListener('input',()=>inp.classList.toggle('has-val', inp.value!==''));
+          inp.addEventListener('change',()=>{
+            if(!store[veh]) store[veh]={};
+            store[veh][k]=inp.value!==''?parseFloat(inp.value):null;
+            if(onCh) onCh();
+          });
+          td.appendChild(inp);
+          return {td, inp};
+        }
+
+        // BALANCE
+        mkCell('pv-cell-bal','bal', balData, key, '0', ()=>{ renderP3(); scheduleSave(); });
+
+        // PUMP FILL — pre-seeded, triggers recon recalc
+        const tdPump=tr.insertCell();
+        const pumpFilled=pfData[veh]&&pfData[veh][key]!=null;
+        tdPump.className='pv-cell pv-cell-pump'+(pumpFilled?(isHighFill?' high':' filled'):'');
+        if(isFirstDate) tdPump.style.cssText='';
+        const inPump=document.createElement('input');
+        inPump.type='text';
+        inPump.className='pv-inp pump'+(pumpFilled?' has-val':'');
+        inPump.placeholder='—';
+        const pumpStored=pfData[veh]&&pfData[veh][key]!=null?pfData[veh][key]:null;
+        if(pumpStored!=null) inPump.value=pumpStored;
+        else if(autoFill!=null){
+          inPump.value=autoFill;
+          if(!pfData[veh]) pfData[veh]={};
+          pfData[veh][key]=autoFill;
+          inPump.classList.add('has-val');
+          tdPump.classList.add(isHighFill?'high':'filled');
+        }
+        inPump.addEventListener('input',()=>inPump.classList.toggle('has-val',inPump.value!==''));
+        inPump.addEventListener('change',()=>{
+          if(!pfData[veh]) pfData[veh]={};
+          const pv=inPump.value.trim(); pfData[veh][key]=pv!==''?pv:null;
+          renderP3(); scheduleSave();
+        });
+        tdPump.appendChild(inPump);
+
+        // OBD FILL per date — text input (accepts number or text)
+        {
+          const td2=tr.insertCell();
+          td2.className='pv-cell pv-cell-obdf'+(isSen?' sensor':'');
+          const inp2=document.createElement('input');
+          inp2.type='text';
+          inp2.className='pv-inp obdf'+(isSen?' sensor':'');
+          inp2.placeholder='—';
+          const ov=obdFillData[veh]&&obdFillData[veh][key]!=null?obdFillData[veh][key]:null;
+          if(ov!=null){ inp2.value=ov; inp2.classList.add('has-val'); }
+          inp2.addEventListener('input',()=>inp2.classList.toggle('has-val',inp2.value!==''));
+          inp2.addEventListener('change',()=>{
+            if(!obdFillData[veh]) obdFillData[veh]={};
+            const v3=inp2.value.trim();
+            obdFillData[veh][key]=v3!==''?v3:null;
+          });
+          td2.appendChild(inp2);
+        }
+
+        // CONSUMED
+        mkCell('pv-cell-cons','cons', consData, key, '0');
+      });
+
+      // END DATE-TIME cell
+      const tdEnd=tr.insertCell();
+      tdEnd.className='pv-cell-dt';
+      tdEnd.style.borderLeft='2px solid #5a2800';
+      tdEnd.style.borderRight='3px solid #ffc107';
+      const inEnd=document.createElement('input'); inEnd.type='text'; inEnd.style.wordBreak='break-word'; inEnd.style.whiteSpace='normal';
+      inEnd.className='pv-inp-dt';
+      inEnd.placeholder='DD/MM/YYYY HH:MM';
+      inEnd.style.color='#7a3900';
+      if(pvEndDT[veh]) inEnd.value=pvEndDT[veh];
+      inEnd.addEventListener('change',()=>{ pvEndDT[veh]=inEnd.value; scheduleSave(); });
+      tdEnd.appendChild(inEnd);
+
+      /* ── RECON COLUMNS ── */
+      const openBal=firstDateKey&&balData[veh]&&balData[veh][firstDateKey]!=null?balData[veh][firstDateKey]:null;
+      const totalPumpFill=sDates.reduce((s,[k])=>s+(numVal(pfData[veh]&&pfData[veh][k])||0),0);
+      const lastBal=pvLastBal[veh];
+      const manCons=(openBal!=null&&lastBal!=null)?(openBal+totalPumpFill-lastBal):null;
+      const obdVal=pvOBD[veh];
+      const diff=(manCons!=null&&obdVal!=null)?manCons-obdVal:null;
+      const diffStatus=diff==null?'na':Math.abs(diff)<0.5?'ok':diff>0?'theft':'sensor';
+
+      // A: Last Balance
+      const tdLast=tr.insertCell();
+      tdLast.style.cssText='background:transparent;border-left:3px solid #ffc107;min-width:100px;text-align:center;padding:3px 6px;';
+      const inLast=document.createElement('input'); inLast.type='number'; inLast.step='0.01';
+      inLast.style.cssText='width:88px;border:none;border-bottom:2px solid #b0c8f0;background:transparent;text-align:center;font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:600;color:#1a3a6b;outline:none;padding:6px 4px;-moz-appearance:textfield;';
+      inLast.addEventListener('focus',()=>inLast.style.borderBottomColor='#1a3a6b');
+      inLast.addEventListener('blur',()=>inLast.style.borderBottomColor='#b0c8f0');
+      inLast.placeholder='0.00';
+      if(lastBal!=null) inLast.value=lastBal;
+      inLast.addEventListener('change',()=>{ pvLastBal[veh]=inLast.value!==''?parseFloat(inLast.value):null; renderP3(); });
+      tdLast.appendChild(inLast);
+
+      // B: Manual Consumption (auto)
+      const tdMan=tr.insertCell();
+      let manBg='transparent', manColor='#bbb';
+      if(manCons!=null){ manBg='transparent'; manColor=manCons>0?C_MAN:'#1d6f42'; }
+      tdMan.style.cssText=`background:transparent;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;color:${manColor};min-width:120px;padding:6px 10px;`;
+      if(openBal!=null&&lastBal!=null){
+        tdMan.innerHTML=`<div style="font-size:15px;">${manCons.toFixed(2)}</div><div style="font-size:9px;color:#8899aa;margin-top:2px;">${openBal.toFixed(1)}+${totalPumpFill.toFixed(1)}−${lastBal.toFixed(1)}</div>`;
+      } else {
+        tdMan.innerHTML='<span style="color:#ccc;font-size:11px;">Enter Bal & Last</span>';
+      }
+
+      // C: OBD Consumption + diff pill
+      const tdOBD=tr.insertCell();
+      tdOBD.style.cssText='background:transparent;min-width:120px;text-align:center;padding:4px 8px;vertical-align:middle;';
+      const obdBorder=isSen?'2px solid #28a745':'1px solid #c8a8f0';
+      const inOBD=document.createElement('input'); inOBD.type='number'; inOBD.step='0.01';
+      inOBD.style.cssText=`width:85px;border:none;border-bottom:${obdBorder};background:transparent;text-align:center;font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:600;color:#5a1a8a;outline:none;display:block;margin:0 auto 4px;padding:6px 2px;-moz-appearance:textfield;`;
+      inOBD.addEventListener('focus',()=>inOBD.style.borderBottomWidth=isSen?'3px':'2px');
+      inOBD.placeholder=isSen?'GPS':'0.00';
+      if(obdVal!=null) inOBD.value=obdVal;
+      inOBD.addEventListener('change',()=>{ pvOBD[veh]=inOBD.value!==''?parseFloat(inOBD.value):null; renderP3(); });
+      tdOBD.appendChild(inOBD);
+      if(diff!=null){
+        const pill=document.createElement('span'); pill.className='diff-pill diff-'+diffStatus;
+        pill.innerHTML=diffStatus==='ok'?'&#10003; MATCH':diffStatus==='theft'?`&#9650; ${diff.toFixed(1)}L THEFT?`:`&#9660; ${Math.abs(diff).toFixed(1)}L SENSOR?`;
+        tdOBD.appendChild(pill);
+      } else if(manCons!=null){
+        const pill=document.createElement('span'); pill.className='diff-pill diff-na'; pill.textContent='Enter OBD';
+        tdOBD.appendChild(pill);
+      }
+
+      // REMARK cell
+      const tdRem=tr.insertCell();
+      tdRem.style.cssText='background:transparent;min-width:160px;max-width:220px;padding:4px 8px;border-left:1px solid #e0e0e0;vertical-align:middle;';
+      const inRem=document.createElement('textarea');
+      inRem.rows=2;
+      inRem.style.cssText='width:100%;border:none;border-bottom:2px solid #e0e0e0;background:transparent;font-family:\'Inter\',sans-serif;font-size:12px;color:#333;outline:none;resize:none;padding:4px 2px;line-height:1.4;transition:border-color 0.15s;';
+      inRem.placeholder='Add remark...';
+      if(pvRemark[veh]) inRem.value=pvRemark[veh];
+      inRem.addEventListener('focus',()=>inRem.style.borderBottomColor='#1a3a6b');
+      inRem.addEventListener('blur', ()=>inRem.style.borderBottomColor='#e0e0e0');
+      inRem.addEventListener('input',()=>{ pvRemark[veh]=inRem.value; scheduleSave(); });
+      tdRem.appendChild(inRem);
+
+      /* ──────────────────────────────────────────────────
+         SITE ENTRY ROW — fully independent editable inputs
+         (what site reported — never affected by CALCULATED)
+      ────────────────────────────────────────────────── */
+      const trC=tbl.insertRow();
+      trC.dataset.veh=veh;
+      trC.style.borderBottom='3px solid #b0c4e0';
+
+      // CHECKBOX placeholder (site row has no done checkbox)
+      const tdCChk=trC.insertCell();
+      tdCChk.style.cssText='background:transparent;position:sticky;left:0;z-index:3;min-width:28px;border-right:1px solid #d0d8e8;border-bottom:3px solid #b0c4e0;';
+
+      // VEHICLE — SITE ENTRY badge (navy)
+      const tdCV=trC.insertCell();
+      const calcBg=isSen?'#c8f0dc':'#dbe8ff';
+      const calcBorder2=isSen?'#28a745':'#4d7fd4';
+      tdCV.style.cssText='font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:11px;background:'+calcBg+';color:#1a3a6b;text-align:center;padding:4px 8px;border-right:3px solid '+calcBorder2+';white-space:nowrap;position:sticky;left:36px;z-index:2;border-bottom:3px solid #b0c4e0;min-width:110px;vertical-align:middle;';
+      tdCV.innerHTML='<div style="font-size:12px;font-weight:800;color:#1a3a6b;">'+vLabel+'</div><div style="font-size:8px;font-weight:700;letter-spacing:1.2px;background:#1a3a6b;color:#fff;border-radius:3px;padding:1px 5px;margin-top:3px;display:inline-block;">SITE ENTRY</div>';
+
+      // START DT — site-independent editable
+      const tdCStartC=trC.insertCell();
+      tdCStartC.className='pv-cell-dt';
+      tdCStartC.style.cssText='background:transparent;min-width:168px;border-right:2px solid #004d66;border-bottom:3px solid #b0c4e0;text-align:center;padding:3px 6px;vertical-align:middle;';
+      const inSiteStart=document.createElement('input'); inSiteStart.type='text';
+      inSiteStart.className='pv-inp-dt';
+      inSiteStart.placeholder='DD/MM/YYYY HH:MM';
+      inSiteStart.style.color='#006080';
+      if(siteStartDT[veh]) inSiteStart.value=siteStartDT[veh];
+      inSiteStart.addEventListener('change',()=>{ siteStartDT[veh]=inSiteStart.value; scheduleSave(); });
+      tdCStartC.appendChild(inSiteStart);
+
+      // DATE COLUMNS — independent editable inputs from site stores
+      sDates.forEach(([key],di)=>{
+        const pal2=pals[di%pals.length];
+
+        function mkSiteCell(cellClass, inpClass, store, placeholder, extraStyle){
+          const td=trC.insertCell();
+          td.className='pv-cell '+cellClass;
+          td.style.borderBottom='3px solid #b0c4e0';
+          if(di===0&&cellClass==='pv-cell-bal') td.style.borderLeft='3px solid '+pal2.bg;
+          if(cellClass==='pv-cell-cons') td.style.borderRight='3px solid '+pal2.bg;
+          if(extraStyle) td.style.cssText+=extraStyle;
+          const inp=document.createElement('input');
+          inp.type='number'; inp.step='0.01';
+          inp.className='pv-inp '+inpClass;
+          inp.placeholder=placeholder||'0';
+          if(!store[veh]) store[veh]={};
+          const sv=store[veh][key]!=null?store[veh][key]:null;
+          if(sv!=null){ inp.value=sv; inp.classList.add('has-val'); }
+          inp.addEventListener('input',()=>inp.classList.toggle('has-val',inp.value!==''));
+          inp.addEventListener('change',()=>{
+            if(!store[veh]) store[veh]={};
+            store[veh][key]=inp.value!==''?parseFloat(inp.value):null;
+            scheduleSave();
+          });
+          td.appendChild(inp);
+          return {td,inp};
+        }
+
+        mkSiteCell('pv-cell-bal',  'bal',  siteBalData,  '0');
+        mkSiteCell('pv-cell-pump', 'pump', sitePumpData, '—');
+        mkSiteCell('pv-cell-obdf', isSen?'obdf sensor':'obdf', siteObdFData, '—');
+        mkSiteCell('pv-cell-cons', 'cons', siteConsData, '0');
+      });
+
+      // END DT — site-independent editable
+      const tdCEndC=trC.insertCell();
+      tdCEndC.className='pv-cell-dt';
+      tdCEndC.style.cssText='background:transparent;min-width:168px;border-left:2px solid #5a2800;border-right:3px solid #ffc107;border-bottom:3px solid #b0c4e0;text-align:center;padding:3px 6px;vertical-align:middle;';
+      const inSiteEnd=document.createElement('input'); inSiteEnd.type='text';
+      inSiteEnd.className='pv-inp-dt';
+      inSiteEnd.placeholder='DD/MM/YYYY HH:MM';
+      inSiteEnd.style.color='#7a3900';
+      if(siteEndDT[veh]) inSiteEnd.value=siteEndDT[veh];
+      inSiteEnd.addEventListener('change',()=>{ siteEndDT[veh]=inSiteEnd.value; scheduleSave(); });
+      tdCEndC.appendChild(inSiteEnd);
+
+      // LAST BALANCE — site-independent editable
+      const tdCLastC=trC.insertCell();
+      tdCLastC.style.cssText='background:transparent;border-left:3px solid #ffc107;min-width:100px;text-align:center;padding:3px 6px;border-bottom:3px solid #b0c4e0;vertical-align:middle;';
+      const inSiteLast=document.createElement('input'); inSiteLast.type='number'; inSiteLast.step='0.01';
+      inSiteLast.style.cssText='width:88px;border:none;border-bottom:2px solid #b0c8f0;background:transparent;text-align:center;font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:600;color:#1a3a6b;outline:none;padding:6px 4px;-moz-appearance:textfield;';
+      inSiteLast.placeholder='0.00';
+      if(siteLastBal[veh]!=null) inSiteLast.value=siteLastBal[veh];
+      inSiteLast.addEventListener('focus',()=>inSiteLast.style.borderBottomColor='#1a3a6b');
+      inSiteLast.addEventListener('blur', ()=>inSiteLast.style.borderBottomColor='#b0c8f0');
+      inSiteLast.addEventListener('change',()=>{ siteLastBal[veh]=inSiteLast.value!==''?parseFloat(inSiteLast.value):null; scheduleSave(); });
+      tdCLastC.appendChild(inSiteLast);
+
+      // MANUAL CONSUMPTION — computed from site stores (open site bal + site pump fill − site last bal)
+      const siteOpenBal=firstDateKey&&siteBalData[veh]&&siteBalData[veh][firstDateKey]!=null?siteBalData[veh][firstDateKey]:null;
+      const siteTotalPump=sDates.reduce((s,[k])=>s+(numVal(sitePumpData[veh]&&sitePumpData[veh][k])||0),0);
+      const siteLastB=siteLastBal[veh];
+      const siteManCons=(siteOpenBal!=null&&siteLastB!=null)?(siteOpenBal+siteTotalPump-siteLastB):null;
+      const tdCManC=trC.insertCell();
+      let sMBg='transparent', sMColor='#bbb';
+      if(siteManCons!=null){ sMBg='transparent'; sMColor=siteManCons>0?C_MAN:'#1d6f42'; }
+      tdCManC.style.cssText='background:transparent;text-align:center;font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:13px;color:'+sMColor+';min-width:120px;padding:6px 10px;border-bottom:3px solid #b0c4e0;';
+      if(siteOpenBal!=null&&siteLastB!=null){
+        tdCManC.innerHTML='<div style="font-size:15px;font-weight:800;">'+siteManCons.toFixed(2)+'</div><div style="font-size:9px;color:#8899aa;margin-top:2px;">'+siteOpenBal.toFixed(1)+'+'+siteTotalPump.toFixed(1)+'−'+siteLastB.toFixed(1)+'</div>';
+      } else {
+        tdCManC.innerHTML='<span style="color:#ccc;font-size:11px;">Enter Bal & Last</span>';
+      }
+
+      // OBD CONSUMPTION — site-independent editable
+      const tdCOBDC=trC.insertCell();
+      tdCOBDC.style.cssText='background:transparent;min-width:120px;text-align:center;padding:4px 8px;border-bottom:3px solid #b0c4e0;vertical-align:middle;';
+      const inSiteOBD=document.createElement('input'); inSiteOBD.type='number'; inSiteOBD.step='0.01';
+      inSiteOBD.style.cssText='width:85px;border:none;border-bottom:'+(isSen?'2px solid #28a745':'1px solid #c8a8f0')+';background:transparent;text-align:center;font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:600;color:#5a1a8a;outline:none;display:block;margin:0 auto 4px;padding:6px 2px;-moz-appearance:textfield;';
+      inSiteOBD.placeholder=isSen?'GPS':'0.00';
+      if(siteOBD[veh]!=null) inSiteOBD.value=siteOBD[veh];
+      inSiteOBD.addEventListener('change',()=>{ siteOBD[veh]=inSiteOBD.value!==''?parseFloat(inSiteOBD.value):null; scheduleSave(); });
+      tdCOBDC.appendChild(inSiteOBD);
+
+      // REMARKS — site-independent
+      const tdCRemC=trC.insertCell();
+      tdCRemC.style.cssText='background:transparent;min-width:160px;max-width:220px;padding:4px 8px;border-left:1px solid #e0e0e0;border-bottom:3px solid #b0c4e0;vertical-align:middle;';
+      const inSiteRem=document.createElement('textarea');
+      inSiteRem.rows=2;
+      inSiteRem.style.cssText='width:100%;border:none;border-bottom:2px solid #a8e6c0;background:transparent;font-family:\'Inter\',sans-serif;font-size:12px;color:#333;outline:none;resize:none;padding:4px 2px;line-height:1.4;transition:border-color 0.15s;';
+      inSiteRem.placeholder='Site remark...';
+      if(siteRemark[veh]) inSiteRem.value=siteRemark[veh];
+      inSiteRem.addEventListener('focus',()=>inSiteRem.style.borderBottomColor='#1a3a6b');
+      inSiteRem.addEventListener('blur', ()=>inSiteRem.style.borderBottomColor='#a8e6c0');
+      inSiteRem.addEventListener('input',()=>{ siteRemark[veh]=inSiteRem.value; scheduleSave(); });
+      tdCRemC.appendChild(inSiteRem);
+    });
+
+    /* ── TOTAL ROW ── */
+    const trT=tbl.insertRow(); trT.className='pvtot';
+    const tdTChk=trT.insertCell();
+    tdTChk.style.cssText='background:transparent;border-top:2px solid #1a3a6b;position:sticky;left:0;z-index:2;';
+    const tdTV=trT.insertCell();
+    tdTV.style.cssText='background:transparent;color:#1a3a6b;font-size:11px;letter-spacing:1px;font-weight:700;text-align:center;padding:10px 14px;border-right:3px solid #ffc107;position:sticky;left:36px;z-index:2;border-top:2px solid #1a3a6b;';
+    tdTV.textContent='TOTALS';
+
+    // Start DT blank in total row
+    const tdTStart=trT.insertCell(); tdTStart.style.cssText='background:transparent;border-right:2px solid #004d66;border-top:2px solid #1a3a6b;';
+
+    sDates.forEach(([key],di)=>{
+      const pal=pals[di%pals.length];
+      const totPump=sVeh.reduce((s,v)=>s+(numVal(pfData[v]&&pfData[v][key]!=null?pfData[v][key]:null)||0),0);
+      const totOBDF=sVeh.reduce((s,v)=>s+(numVal(obdFillData[v]&&obdFillData[v][key]!=null?obdFillData[v][key]:null)||0),0);
+
+      const mkT=(txt,bg,color,borderR)=>{
+        const td=trT.insertCell();
+        td.style.cssText=`background:transparent;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;color:${color};border-top:2px solid #1a3a6b;padding:8px 6px;border-right:${borderR||'1px solid #d0d8e8'};`;
+        td.textContent=txt; return td;
+      };
+      if(di===0) mkT('—','#f5f8ff','#bbb','1px solid #d0d8e8').style.borderLeft='3px solid '+pal.bg;
+      else mkT('—','#f5f8ff','#bbb','1px solid #d0d8e8');
+      mkT(totPump>0?totPump.toFixed(2):'—','#d1f5e0','#1d6f42');
+      mkT(totOBDF>0?totOBDF.toFixed(2):'—','#e8f5ff','#006080');
+      const tdC=trT.insertCell();
+      tdC.style.cssText=`background:transparent;border-top:2px solid #1a3a6b;border-right:3px solid ${pal.bg};`;
+    });
+
+    // End DT blank in total row
+    const tdTEnd=trT.insertCell(); tdTEnd.style.cssText='background:transparent;border-left:2px solid #5a2800;border-right:3px solid #ffc107;border-top:2px solid #1a3a6b;';
+
+    const hasM=sVeh.some(v=>{ const ob=firstDateKey&&balData[v]&&balData[v][firstDateKey]!=null?balData[v][firstDateKey]:null; return ob!=null&&pvLastBal[v]!=null; });
+    const hasO=sVeh.some(v=>pvOBD[v]!=null);
+    const totM=sVeh.reduce((s,v)=>{ const ob=firstDateKey&&balData[v]&&balData[v][firstDateKey]!=null?balData[v][firstDateKey]:null; const lb=pvLastBal[v]; const tf=sDates.reduce((ss,[k])=>ss+(numVal(pfData[v]&&pfData[v][k])||0),0); return s+((ob!=null&&lb!=null)?(ob+tf-lb):0); },0);
+    const totO=sVeh.reduce((s,v)=>s+(pvOBD[v]||0),0);
+
+    const tdTL=trT.insertCell(); tdTL.style.cssText='border-left:3px solid #ffc107;background:transparent;text-align:center;color:#6b7a99;font-size:12px;border-top:2px solid #1a3a6b;padding:8px;'; tdTL.textContent='—';
+    const tdTM=trT.insertCell(); tdTM.style.cssText=`background:transparent;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;color:${C_MAN};border-top:2px solid #1a3a6b;padding:8px;`; tdTM.textContent=hasM?totM.toFixed(2):'—';
+    const tdTO=trT.insertCell(); tdTO.style.cssText=`background:transparent;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;color:${C_OBD};border-top:2px solid #1a3a6b;padding:8px;`; tdTO.textContent=hasO?totO.toFixed(2):'—';
+
+    // Restore focus state after re-render
+    applyFocus();
+  }
+
+    /* EXCEL EXPORT */
+  async function downloadExcel(){
+    if(!parsedData.length) return;
+    const btn=el('btnExcel'); btn.disabled=true; btn.textContent='Generating...';
+    try {
+      const wb=new ExcelJS.Workbook(); wb.creator='TASR/UIPL'; wb.created=new Date();
+
+      /* SHEET 1 */
+      const ws=wb.addWorksheet('Fill Details',{views:[{state:'frozen',ySplit:1}]});
+      ws.columns=[{header:'#',key:'idx',width:6},{header:'Vehicle No',key:'veh',width:14},{header:'Fill Qty (L)',key:'qty',width:14},{header:'Fill Date',key:'date',width:20},{header:'Time',key:'time',width:14},{header:'Sender',key:'sender',width:20},{header:'Notes',key:'notes',width:22},{header:'Category',key:'cat',width:14}];
+      ws.getRow(1).height=28;
+      ws.getRow(1).eachCell(c=>{ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A3A6B'}}; c.font={bold:true,color:{argb:'FFFFFFFF'},size:11,name:'Arial'}; c.alignment={horizontal:'center',vertical:'middle'}; c.border={bottom:{style:'medium',color:{argb:'FFFFC107'}}}; });
+      let tq=0;
+      parsedData.forEach((e,i)=>{ tq+=e.qty; const h=e.qty>=150;
+        const row=ws.addRow({idx:i+1,veh:e.vehicle,qty:e.qty,date:fmtFull(e.date),time:e.time||'',sender:e.sender||'',notes:e.notes||'',cat:h?'HIGH FILL':'NORMAL'});
+        row.height=22;
+        const vc=row.getCell('veh'); vc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF3CD'}}; vc.font={bold:true,color:{argb:'FF7A5300'},name:'Arial',size:12}; vc.alignment={horizontal:'center',vertical:'middle'};
+        const qc=row.getCell('qty'); qc.fill={type:'pattern',pattern:'solid',fgColor:{argb:h?'FFFFF8E1':'FFD1F5E0'}}; qc.font={bold:true,color:{argb:h?'FFE67E00':'FF1D6F42'},name:'Arial',size:12}; qc.numFmt='0.00'; qc.alignment={horizontal:'center'};
+        const dc=row.getCell('date'); dc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFDBE8FF'}}; dc.font={color:{argb:'FF1A3A6B'},name:'Arial'}; dc.alignment={horizontal:'center'};
+        const tc=row.getCell('time'); tc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0E6FF'}}; tc.font={color:{argb:'FF5A1A8A'},name:'Arial'}; tc.alignment={horizontal:'center'};
+        const cc=row.getCell('cat'); cc.fill={type:'pattern',pattern:'solid',fgColor:{argb:h?'FFFFE8CC':'FFD1F5E0'}}; cc.font={bold:true,color:{argb:h?'FFE67E00':'FF1D6F42'},name:'Arial'}; cc.alignment={horizontal:'center'};
+      });
+      const tr=ws.addRow({idx:'',veh:'TOTAL',qty:tq,date:'',time:'',sender:parsedData.length+' entries',notes:'',cat:''}); tr.height=24;
+      tr.eachCell(c=>{ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0F7FF'}}; c.font={bold:true,color:{argb:'FF1A3A6B'},name:'Arial',size:12}; c.border={top:{style:'medium',color:{argb:'FF1A3A6B'}}}; });
+      tr.getCell('qty').numFmt='0.00'; tr.getCell('qty').font={bold:true,color:{argb:'FF1D6F42'},name:'Arial',size:13};
+
+      /* SHEET 2 */
+      const ws2=wb.addWorksheet('Vehicle Summary');
+      ws2.columns=[{header:'Vehicle No',key:'v',width:16},{header:'No of Fills',key:'f',width:14},{header:'Total Qty (L)',key:'t',width:16},{header:'Avg Fill (L)',key:'a',width:16},{header:'Max Fill (L)',key:'m',width:16}];
+      ws2.getRow(1).height=28;
+      ws2.getRow(1).eachCell(c=>{ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1D6F42'}}; c.font={bold:true,color:{argb:'FFFFFFFF'},size:11,name:'Arial'}; c.alignment={horizontal:'center',vertical:'middle'}; c.border={bottom:{style:'medium',color:{argb:'FFFFC107'}}}; });
+      const vm={};
+      parsedData.forEach(e=>{ if(!vm[e.vehicle]) vm[e.vehicle]=[]; vm[e.vehicle].push(e.qty); });
+      Object.entries(vm).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).forEach(([v,qs])=>{
+        const tot=qs.reduce((a,b)=>a+b,0); const max=Math.max(...qs);
+        const row=ws2.addRow({v,f:qs.length,t:tot,a:(tot/qs.length).toFixed(2),m:max}); row.height=22;
+        row.getCell('v').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF3CD'}}; row.getCell('v').font={bold:true,color:{argb:'FF7A5300'},name:'Arial'}; row.getCell('v').alignment={horizontal:'center'};
+        row.getCell('t').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1F5E0'}}; row.getCell('t').font={bold:true,color:{argb:'FF1D6F42'},name:'Arial'}; row.getCell('t').numFmt='0.00'; row.getCell('t').alignment={horizontal:'center'};
+        ['f','a','m'].forEach(k=>row.getCell(k).alignment={horizontal:'center'});
+        if(max>=150){ row.getCell('m').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF8E1'}}; row.getCell('m').font={bold:true,color:{argb:'FFE67E00'},name:'Arial'}; }
+      });
+
+      /* ── SHEET 3: FULL PIVOT REPORT ── */
+      const dm2={}, vs2=new Set();
+      parsedData.forEach(e=>{ const k=fmt(e.date); dm2[k]={label:fmtLbl(e.date),date:e.date}; vs2.add(e.vehicle); });
+      // Fill all calendar dates in range for Excel too
+      const xDates=Object.entries(dm2).sort((a,b)=>dsort(a[1].date,b[1].date));
+      if(xDates.length>=2){
+        const xf=xDates[0][1].date, xl=xDates[xDates.length-1][1].date;
+        const xc=new Date(xf.year,xf.month,xf.day), xe=new Date(xl.year,xl.month,xl.day);
+        while(xc<=xe){ const d={day:xc.getDate(),month:xc.getMonth(),year:xc.getFullYear()}; const k=fmt(d); if(!dm2[k]) dm2[k]={label:fmtLbl(d),date:d,empty:true}; xc.setDate(xc.getDate()+1); }
+      }
+      const sD=Object.entries(dm2).sort((a,b)=>dsort(a[1].date,b[1].date));
+      const sV=[...vs2].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+      const fm2={};
+      parsedData.forEach(e=>{ const k=fmt(e.date); if(!fm2[e.vehicle]) fm2[e.vehicle]={}; fm2[e.vehicle][k]=(fm2[e.vehicle][k]||0)+e.qty; });
+      const pfD=window.pumpFillData||{};
+
+      // Column layout:
+      // Col 1 = Done, Col 2 = Vehicle, Col 3 = Start DT
+      // Then per date: 4 cols (Balance, Pump Fill, OBD Fill, Consumed)
+      // After dates: End DT, Last Balance, Manual Cons, OBD Cons, Remarks
+      const XCOLS = 4; // per date group
+      const startCol  = 3;                             // Start DT
+      const dateStart = 4;                             // first date col base
+      const endCol    = dateStart + sD.length*XCOLS;   // End DT
+      const reconCol  = endCol + 1;                    // Last Balance
+      const totalCols = reconCol + 4;                  // +4 recon cols
+
+      const ws3=wb.addWorksheet('Pivot Report',{views:[{state:'frozen',xSplit:3,ySplit:2}]});
+
+      // Column widths
+      ws3.getColumn(1).width=6;   // Done checkbox
+      ws3.getColumn(2).width=18;  // Vehicle
+      ws3.getColumn(3).width=22;  // Start DT
+      sD.forEach((_,di)=>{
+        const b=dateStart+di*XCOLS;
+        ws3.getColumn(b).width=11;   // Balance
+        ws3.getColumn(b+1).width=12; // Pump Fill
+        ws3.getColumn(b+2).width=11; // OBD Fill
+        ws3.getColumn(b+3).width=11; // Consumed
+      });
+      ws3.getColumn(endCol).width=22;   // End DT
+      ws3.getColumn(reconCol).width=13; // Last Balance
+      ws3.getColumn(reconCol+1).width=16; // Manual Cons
+      ws3.getColumn(reconCol+2).width=13; // OBD Cons
+      ws3.getColumn(reconCol+3).width=24; // Remarks
+
+      const xlPal=['FF1A3A6B','FF1D6F42','FF7A3900','FF5A1A8A','FF7A1A1A','FF006080'];
+
+      const hFill=(argb)=>({type:'pattern',pattern:'solid',fgColor:{argb}});
+      const hFont=(argb,sz,bold)=>({bold:!!bold,color:{argb},size:sz||10,name:'Arial'});
+      const hAlign=(h,v,wrap)=>({horizontal:h||'center',vertical:v||'middle',wrapText:!!wrap});
+      const thick=(argb)=>({style:'medium',color:{argb}});
+      const thin=(argb)=>({style:'thin',color:{argb:argb||'FFD0D8E8'}});
+
+      // ── ROW 1: Merged group headers ──
+      ws3.getRow(1).height=28;
+
+      // Done (rowspan 2)
+      ws3.mergeCells(1,1,2,1);
+      const r1done=ws3.getCell(1,1);
+      r1done.value='✓'; r1done.fill=hFill('FF2C3E50'); r1done.font=hFont('FFFFFFFF',10,true);
+      r1done.alignment=hAlign('center','middle');
+
+      // Vehicle (rowspan 2)
+      ws3.mergeCells(1,2,2,2);
+      const r1veh=ws3.getCell(1,2);
+      r1veh.value='VEHICLE NUMBER'; r1veh.fill=hFill('FF1A3A6B'); r1veh.font=hFont('FFFFFFFF',11,true);
+      r1veh.alignment=hAlign('center','middle'); r1veh.border={right:thick('FFFFC107'),bottom:thick('FFFFC107')};
+
+      // Start DT (rowspan 2)
+      ws3.mergeCells(1,3,2,3);
+      const r1start=ws3.getCell(1,3);
+      r1start.value='▶ START DATE & TIME'; r1start.fill=hFill('FF006080'); r1start.font=hFont('FFFFFFFF',10,true);
+      r1start.alignment=hAlign('center','middle',true); r1start.border={right:thick('FF004D66')};
+
+      // Date group headers
+      sD.forEach(([,info],di)=>{
+        const b=dateStart+di*XCOLS;
+        ws3.mergeCells(1,b,1,b+XCOLS-1);
+        const c=ws3.getCell(1,b);
+        c.value=info.label; c.fill=hFill(xlPal[di%xlPal.length]);
+        c.font=hFont('FFFFFFFF',12,true); c.alignment=hAlign('center','middle');
+        c.border={left:{style:'medium',color:{argb:'FFFFFFFF'}},right:{style:'medium',color:{argb:'FFFFFFFF'}}};
+      });
+
+      // End DT (rowspan 2)
+      ws3.mergeCells(1,endCol,2,endCol);
+      const r1end=ws3.getCell(1,endCol);
+      r1end.value='◼ END DATE & TIME'; r1end.fill=hFill('FF7A3900'); r1end.font=hFont('FFFFFFFF',10,true);
+      r1end.alignment=hAlign('center','middle',true); r1end.border={left:thick('FF5A2800'),right:thick('FFFFC107')};
+
+      // Recon group header
+      ws3.mergeCells(1,reconCol,1,reconCol+3);
+      const r1rec=ws3.getCell(1,reconCol);
+      r1rec.value='🔍 FUEL RECONCILIATION'; r1rec.fill=hFill('FF2C3E50'); r1rec.font=hFont('FFFFFFFF',11,true);
+      r1rec.alignment=hAlign('center','middle'); r1rec.border={left:thick('FFFFC107')};
+
+      // ── ROW 2: Sub-headers ──
+      ws3.getRow(2).height=22;
+      const subCols=[
+        {lbl:'BALANCE',  bg:'FFDBE8FF',fg:'FF1A3A6B'},
+        {lbl:'PUMP FILL',bg:'FFD1F5E0',fg:'FF1D6F42'},
+        {lbl:'OBD FILL', bg:'FFE8F5FF',fg:'FF006080'},
+        {lbl:'CONSUMED', bg:'FFFDE8D8',fg:'FF7A3900'},
+      ];
+      sD.forEach(([,],di)=>{
+        const b=dateStart+di*XCOLS; const pal=xlPal[di%xlPal.length];
+        subCols.forEach((s,si)=>{
+          const c=ws3.getCell(2,b+si); c.value=s.lbl;
+          c.fill=hFill(s.bg); c.font=hFont(s.fg,9,true);
+          c.alignment=hAlign('center','middle');
+          c.border={
+            left: si===0?{style:'medium',color:{argb:pal}}:thin(),
+            right:si===XCOLS-1?{style:'medium',color:{argb:pal}}:thin(),
+            bottom:{style:'medium',color:{argb:pal}}
+          };
+        });
+      });
+      // Recon sub-headers
+      [
+        {lbl:'LAST BALANCE',       bg:'FFDBE8FF',fg:'FF1A3A6B'},
+        {lbl:'MANUAL CONSUMPTION', bg:'FFFDE8d8',fg:'FFC0392B'},
+        {lbl:'OBD CONSUMPTION',    bg:'FFF0E6FF',fg:'FF5A1A8A'},
+        {lbl:'REMARKS',            bg:'FFF5F5F5',fg:'FF444444'},
+      ].forEach((s,i)=>{
+        const c=ws3.getCell(2,reconCol+i); c.value=s.lbl;
+        c.fill=hFill(s.bg); c.font=hFont(s.fg,9,true);
+        c.alignment=hAlign('center','middle',true);
+        c.border={left:i===0?thick('FFFFC107'):thin(), bottom:{style:'medium',color:{argb:'FF2C3E50'}}};
+      });
+
+      // ── DATA ROWS ──
+      sV.forEach((veh,vi)=>{
+        const isSen=isSensor(veh);
+        const rbg=vi%2===0?'FFFFFFFF':'FFF9FAFC';
+        const row=ws3.addRow([]); row.height=22;
+
+        // Done checkbox (text indicator)
+        const dc=row.getCell(1);
+        dc.value=pvDone[veh]?'✓':''; dc.fill=hFill(pvDone[veh]?'FFE8F5E9':'FFFAFBFD');
+        dc.font={bold:true,color:{argb:pvDone[veh]?'FF1D6F42':'FFBBBBBB'},size:12,name:'Arial'};
+        dc.alignment=hAlign('center','middle');
+
+        // Vehicle
+        const vc=row.getCell(2);
+        vc.value=fullName(veh);
+        vc.fill=hFill(isSen?'FFD4F5E2':'FFFFF3CD');
+        vc.font={bold:true,color:{argb:isSen?'FF1A6B3A':'FF7A5300'},size:11,name:'Arial'};
+        vc.alignment=hAlign('center','middle');
+        vc.border={right:thick(isSen?'FF28A745':'FFFFC107')};
+
+        // Start DT
+        const sc=row.getCell(3);
+        sc.value=pvStartDT[veh]||''; sc.fill=hFill('FFE8F5F8');
+        sc.font={color:{argb:'FF006080'},name:'Arial',size:10};
+        sc.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+        sc.border={right:thick('FF004D66')};
+
+        // Date columns
+        sD.forEach(([key],di)=>{
+          const b=dateStart+di*XCOLS; const pal=xlPal[di%xlPal.length];
+          const fq=fm2[veh]&&fm2[veh][key]?fm2[veh][key]:null;
+          const high=fq!==null&&fq>=150;
+          const pfRaw=pfD[veh]&&pfD[veh][key]!=null?pfD[veh][key]:fq;
+          const pfNote=pfRaw!=null&&isNaN(parseFloat(pfRaw))?pfRaw:null; // text note
+          const pf=pfNote?null:parseFloat(pfRaw)||null; // numeric or null
+          const bv=balData[veh]&&balData[veh][key]!=null?balData[veh][key]:null;
+          const of2=obdFillData[veh]&&obdFillData[veh][key]!=null?obdFillData[veh][key]:null;
+          const cv=consData[veh]&&consData[veh][key]!=null?consData[veh][key]:null;
+
+          // Balance
+          const bc=row.getCell(b);
+          bc.value=bv; bc.numFmt='0.00'; bc.fill=hFill(bv!=null?'FFDBE8FF':rbg);
+          bc.font=hFont('FF1A3A6B',10); bc.alignment=hAlign();
+          bc.border={left:{style:'medium',color:{argb:pal}}};
+
+          // Pump Fill
+          const pfc=row.getCell(b+1);
+          if(pfNote){ 
+            pfc.value=pfNote; pfc.fill=hFill('FFFFFDE7');
+            pfc.font={italic:true,color:{argb:'FF888800'},name:'Arial',size:9};
+            pfc.alignment={horizontal:'center',vertical:'middle'};
+          } else {
+            pfc.value=pf; pfc.numFmt='0.00';
+            pfc.fill=hFill(pf!=null?(high?'FFFFF8E1':'FFD1F5E0'):rbg);
+            pfc.font={bold:pf!=null,color:{argb:pf!=null?(high?'FFE67E00':'FF1D6F42'):'FFBBBBBB'},name:'Arial',size:pf!=null?11:10};
+            pfc.alignment=hAlign();
+          }
+
+          // OBD Fill — numeric only, text notes shown italic, GPS=blank
+          const of2Num=of2!=null&&!isNaN(parseFloat(of2))?parseFloat(of2):null;
+          const of2Note=of2!=null&&isNaN(parseFloat(of2))?of2:null;
+          const ofc=row.getCell(b+2);
+          if(of2Note){
+            ofc.value=of2Note; ofc.fill=hFill('FFFFFDE7');
+            ofc.font={italic:true,color:{argb:'FF006080'},name:'Arial',size:9};
+            ofc.alignment={horizontal:'center',vertical:'middle'};
+          } else {
+            ofc.value=of2Num; ofc.numFmt='0.00';
+            ofc.fill=hFill(of2Num!=null?'FFE8F5FF':rbg);
+            ofc.font={bold:of2Num!=null,color:{argb:of2Num!=null?'FF006080':'FFBBBBBB'},name:'Arial',size:10};
+            ofc.alignment=hAlign();
+          }
+
+          // Consumed
+          const cc=row.getCell(b+3);
+          cc.value=cv; cc.numFmt='0.00';
+          cc.fill=hFill(cv!=null?'FFFDE8D8':rbg);
+          cc.font=hFont('FF7A3900',10); cc.alignment=hAlign();
+          cc.border={right:{style:'medium',color:{argb:pal}}};
+        });
+
+        // End DT
+        const ec=row.getCell(endCol);
+        ec.value=pvEndDT[veh]||''; ec.fill=hFill('FFFFF5EE');
+        ec.font={color:{argb:'FF7A3900'},name:'Arial',size:10};
+        ec.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+        ec.border={left:thick('FF5A2800'),right:thick('FFFFC107')};
+
+        // RECON: Last Balance
+        const lb=pvLastBal[veh];
+        const lbc=row.getCell(reconCol);
+        lbc.value=lb; lbc.numFmt='0.00';
+        lbc.fill=hFill(lb!=null?'FFDBE8FF':rbg);
+        lbc.font=hFont('FF1A3A6B',10,lb!=null); lbc.alignment=hAlign();
+        lbc.border={left:thick('FFFFC107')};
+
+        // RECON: Manual Consumption (auto-calc)
+        const openBal=sD.length>0&&balData[veh]&&balData[veh][sD[0][0]]!=null?balData[veh][sD[0][0]]:null;
+        const totPump=sD.reduce((s,[k])=>s+((pfD[veh]&&pfD[veh][k]!=null?pfD[veh][k]:fm2[veh]&&fm2[veh][k]?fm2[veh][k]:0)),0);
+        const manCons=(openBal!=null&&lb!=null)?(openBal+totPump-lb):null;
+        const mc=row.getCell(reconCol+1);
+        mc.value=manCons; mc.numFmt='0.00';
+        mc.fill=hFill(manCons!=null?(manCons>0?'FFFDE8D8':'FFD1F5E0'):rbg);
+        mc.font={bold:manCons!=null,color:{argb:manCons!=null?(manCons>0?'FFC0392B':'FF1D6F42'):'FFBBBBBB'},name:'Arial',size:manCons!=null?11:10};
+        mc.alignment=hAlign();
+
+        // RECON: OBD Consumption
+        const obdv=pvOBD[veh];
+        const oc=row.getCell(reconCol+2);
+        oc.value=obdv; oc.numFmt='0.00';
+        oc.fill=hFill(obdv!=null?'FFF0E6FF':rbg);
+        oc.font={bold:obdv!=null,color:{argb:obdv!=null?'FF5A1A8A':'FFBBBBBB'},name:'Arial',size:obdv!=null?11:10};
+        oc.alignment=hAlign();
+        // No GPS text in Excel for OBD consumption either
+
+        // REMARKS
+        const rem=pvRemark[veh]||'';
+        const rc=row.getCell(reconCol+3);
+        rc.value=rem; rc.fill=hFill(rem?'FFFFF9E6':rbg);
+        rc.font={italic:true,color:{argb:rem?'FF333333':'FFBBBBBB'},name:'Arial',size:10};
+        rc.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+
+        // Done row styling in Excel
+        if(pvDone[veh]){
+          for(let c2=1;c2<=reconCol+3;c2++){
+            const cell=row.getCell(c2);
+            cell.fill=hFill('FF1A2233');
+            cell.font={...cell.font, color:{argb:'FFFFFFFF'}};
+          }
+        }
+      });
+
+      // ── TOTAL ROW ──
+      const trow=ws3.addRow([]); trow.height=26;
+      for(let c2=1;c2<=reconCol+3;c2++){
+        const cell=trow.getCell(c2);
+        cell.fill=hFill('FFF0F7FF');
+        cell.border={top:{style:'medium',color:{argb:'FF1A3A6B'}}};
+      }
+      trow.getCell(2).value='TOTALS';
+      trow.getCell(2).font=hFont('FF1A3A6B',11,true);
+      trow.getCell(2).alignment=hAlign('center','middle');
+
+      // Per-date pump fill and OBD fill totals
+      sD.forEach(([key],di)=>{
+        const b=dateStart+di*XCOLS;
+        const totPump=sV.reduce((s,v)=>{ const raw=pfD[v]&&pfD[v][key]!=null?pfD[v][key]:(fm2[v]&&fm2[v][key]?fm2[v][key]:null); const n=parseFloat(raw); return s+(isNaN(n)?0:n); },0);
+        const totOBD=sV.reduce((s,v)=>{ const raw=obdFillData[v]&&obdFillData[v][key]!=null?obdFillData[v][key]:null; const n=parseFloat(raw); return s+(isNaN(n)?0:n); },0);
+        const pfc2=trow.getCell(b+1); pfc2.value=totPump>0?totPump:null; pfc2.numFmt='0.00';
+        pfc2.fill=hFill('FFD1F5E0'); pfc2.font=hFont('FF1D6F42',12,true); pfc2.alignment=hAlign();
+        const ofc2=trow.getCell(b+2); ofc2.value=totOBD>0?totOBD:null; ofc2.numFmt='0.00';
+        ofc2.fill=hFill('FFE8F5FF'); ofc2.font=hFont('FF006080',11,true); ofc2.alignment=hAlign();
+      });
+
+      // Recon totals
+      const totManCons=sV.reduce((s,v)=>{
+        const ob=sD.length>0&&balData[v]&&balData[v][sD[0][0]]!=null?balData[v][sD[0][0]]:null;
+        const lb2=pvLastBal[v];
+        const tf=sD.reduce((ss,[k])=>{ const raw=pfD[v]&&pfD[v][k]!=null?pfD[v][k]:(fm2[v]&&fm2[v][k]?fm2[v][k]:null); const n=parseFloat(raw); return ss+(isNaN(n)?0:n); },0);
+        return s+((ob!=null&&lb2!=null)?(ob+tf-lb2):0);
+      },0);
+      const totOBDcons=sV.reduce((s,v)=>s+(pvOBD[v]||0),0);
+      const hasM=sV.some(v=>{ const ob=sD.length>0&&balData[v]&&balData[v][sD[0][0]]!=null?balData[v][sD[0][0]]:null; return ob!=null&&pvLastBal[v]!=null; });
+      const hasO=sV.some(v=>pvOBD[v]!=null);
+
+      const mc2=trow.getCell(reconCol+1); mc2.value=hasM?totManCons:null; mc2.numFmt='0.00';
+      mc2.fill=hFill('FFFDE8D8'); mc2.font=hFont('FFC0392B',12,true); mc2.alignment=hAlign();
+      const oc2=trow.getCell(reconCol+2); oc2.value=hasO?totOBDcons:null; oc2.numFmt='0.00';
+      oc2.fill=hFill('FFF0E6FF'); oc2.font=hFont('FF5A1A8A',12,true); oc2.alignment=hAlign();
+
+      const buf=await wb.xlsx.writeBuffer();
+      const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const a=document.createElement('a'); const now=new Date();
+      a.download=`FuelFills_${now.getDate()}-${now.getMonth()+1}-${now.getFullYear()}.xlsx`;
+      a.href=URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href);
+    } catch(err){ alert('Excel error: '+err.message); console.error(err); }
+    btn.disabled=false; btn.innerHTML='&#128229; Download Excel';
+  }
+
+  function clearAll(){ clearSession(); }
+
+  /* ══════════════════════════════════════════
+     NEW SESSION  (carry-forward flow)
+  ══════════════════════════════════════════ */
+  function showNewSessionPanel(){
+    if(!parsedData.length){ alert('No active session data to roll over.'); return; }
+
+    // Collect all vehicles in current pivot
+    const vehicles=[...new Set(parsedData.map(e=>e.vehicle))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+
+    // Build preview table
+    let html=`<table style="border-collapse:collapse;font-size:12px;width:100%;">
+      <thead><tr>
+        <th style="background:#2c3e50;color:#fff;padding:8px 12px;text-align:left;white-space:nowrap;">Vehicle</th>
+        <th style="background:#006080;color:#fff;padding:8px 12px;text-align:center;white-space:nowrap;">End DT → New Start DT</th>
+        <th style="background:#006080;color:#fff;padding:8px 12px;text-align:center;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2);">Site End DT → Site Start DT</th>
+        <th style="background:#1d6f42;color:#fff;padding:8px 12px;text-align:center;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2);">Last Bal → Opening Bal</th>
+        <th style="background:#1d6f42;color:#fff;padding:8px 12px;text-align:center;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2);">Site Last Bal → Site Opening</th>
+      </tr></thead><tbody>`;
+
+    vehicles.forEach((v,i)=>{
+      const bg=i%2===0?'#f9f9f9':'#fff';
+      const endDT=pvEndDT[v]||'<span style="color:#bbb;">—</span>';
+      const siteEnd=siteEndDT[v]||'<span style="color:#bbb;">—</span>';
+      const lastBal=pvLastBal[v]!=null?`<strong style="color:#1d6f42;">${pvLastBal[v].toFixed(2)} L</strong>`:'<span style="color:#bbb;">—</span>';
+      const siteLastB=siteLastBal[v]!=null?`<strong style="color:#1d6f42;">${siteLastBal[v].toFixed(2)} L</strong>`:'<span style="color:#bbb;">—</span>';
+      const isSen=pvDevice[v]===true;
+      html+=`<tr style="background:${bg};">
+        <td style="padding:7px 12px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;color:${isSen?'#1a6b3a':'#7a5300'};border-bottom:1px solid #eee;">${isSen?fullName(v):v}</td>
+        <td style="padding:7px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#006080;border-bottom:1px solid #eee;">${endDT}</td>
+        <td style="padding:7px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#006080;border-bottom:1px solid #eee;border-left:1px solid #eee;">${siteEnd}</td>
+        <td style="padding:7px 12px;text-align:center;border-bottom:1px solid #eee;border-left:1px solid #eee;">${lastBal}</td>
+        <td style="padding:7px 12px;text-align:center;border-bottom:1px solid #eee;border-left:1px solid #eee;">${siteLastB}</td>
+      </tr>`;
+    });
+    html+='</tbody></table>';
+
+    el('newSessionPreview').innerHTML=html;
+    el('newSessionPanel').style.display='block';
+    el('newSessionPanel').scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+
+  function confirmNewSession(){
+    const vehicles=[...new Set(parsedData.map(e=>e.vehicle))];
+
+    // ── CARRY FORWARD: EndDT → StartDT, LastBal → CarryBal ──
+    vehicles.forEach(v=>{
+      pvCarryBal[v]   = pvLastBal[v]!=null   ? pvLastBal[v]   : null;
+      siteCarryBal[v] = siteLastBal[v]!=null ? siteLastBal[v] : null;
+      pvStartDT[v]    = pvEndDT[v]   || '';
+      siteStartDT[v]  = siteEndDT[v] || '';
+    });
+
+    // ── CLEAR date-keyed data ──
+    vehicles.forEach(v=>{
+      if(balData[v])     Object.keys(balData[v]).forEach(k=>delete balData[v][k]);
+      if(consData[v])    Object.keys(consData[v]).forEach(k=>delete consData[v][k]);
+      if(obdFillData[v]) Object.keys(obdFillData[v]).forEach(k=>delete obdFillData[v][k]);
+      if(window.pumpFillData&&window.pumpFillData[v]) Object.keys(window.pumpFillData[v]).forEach(k=>delete window.pumpFillData[v][k]);
+      if(siteBalData[v])  Object.keys(siteBalData[v]).forEach(k=>delete siteBalData[v][k]);
+      if(sitePumpData[v]) Object.keys(sitePumpData[v]).forEach(k=>delete sitePumpData[v][k]);
+      if(siteConsData[v]) Object.keys(siteConsData[v]).forEach(k=>delete siteConsData[v][k]);
+      if(siteObdFData[v]) Object.keys(siteObdFData[v]).forEach(k=>delete siteObdFData[v][k]);
+      pvLastBal[v]=null; pvEndDT[v]=''; pvOBD[v]=null;
+      siteLastBal[v]=null; siteEndDT[v]=''; siteOBD[v]=null;
+    });
+
+    // ── CLEAR fill data & inputs ──
+    parsedData=[];
+    ['c-veh','c-qty','c-date','c-time','c-notes'].forEach(id=>{ const e2=el(id); if(e2) e2.value=''; });
+    const wa=el('wa-input'); if(wa) wa.value='';
+
+    // ── HIDE results ──
+    el('pageNav').style.display='none';
+    [1,2,3].forEach(i=>el('page'+i).style.display='none');
+    el('emptyMsg').style.display='none';
+    el('newSessionPanel').style.display='none';
+    focusVeh=null; transposeFocus=false;
+
+    saveSession();
+    updateSessionBadge(new Date().toISOString());
+
+    // Show success toast
+    const toast=document.createElement('div');
+    toast.style.cssText='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1d6f42;color:#fff;padding:12px 28px;border-radius:8px;font-size:13px;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);letter-spacing:0.5px;';
+    toast.textContent='✅ New session started — opening balances & start times pre-filled';
+    document.body.appendChild(toast);
+    setTimeout(()=>toast.remove(), 3500);
+  }
+
+
+  /* ── PIVOT DISPLAY CONTROLS ── */
+  const pvDisplay = { rh:32, cw:56, fs:11, dt:168 };
+  const pvDisplayDefaults = { rh:32, cw:56, fs:11, dt:168 };
+
+  let focusVeh = null;
+  let transposeFocus = false;
+
+  function applyFocus(){
+    const tbl = document.getElementById('pivotTable');
+    const showAllBtn = document.getElementById('btnShowAll');
+    const transposeBtn = document.getElementById('btnTranspose');
+    const pivotScroll = tbl ? tbl.closest('.pivot-scroll') : null;
+    const transposedWrap = document.getElementById('pivotTransposedWrap');
+    if(!tbl) return;
+
+    if(focusVeh){
+      // hide all vehicle rows, show only focusVeh rows
+      tbl.querySelectorAll('tr[data-veh]').forEach(tr=>{
+        tr.style.display = tr.dataset.veh === focusVeh ? '' : 'none';
+      });
+      if(showAllBtn){ showAllBtn.style.display='inline-flex'; showAllBtn.textContent='👁 Show All ('+focusVeh+')'; }
+      if(transposeBtn){ transposeBtn.style.display='inline-flex'; transposeBtn.textContent=transposeFocus?'↕ Normal View':'↕ Transpose'; }
+
+      // toggle between normal and transposed view
+      if(transposeFocus){
+        if(pivotScroll) pivotScroll.style.display='none';
+        if(transposedWrap){ transposedWrap.style.display='block'; renderTransposed(focusVeh); }
+      } else {
+        if(pivotScroll) pivotScroll.style.display='';
+        if(transposedWrap) transposedWrap.style.display='none';
+      }
+    } else {
+      tbl.querySelectorAll('tr[data-veh]').forEach(tr=>{ tr.style.display=''; });
+      if(showAllBtn) showAllBtn.style.display='none';
+      if(transposeBtn) transposeBtn.style.display='none';
+      if(pivotScroll) pivotScroll.style.display='';
+      if(transposedWrap) transposedWrap.style.display='none';
+      transposeFocus=false;
+    }
+  }
+
+  function showAllVehicles(){ focusVeh=null; transposeFocus=false; applyFocus(); }
+
+  function toggleTranspose(){
+    transposeFocus=!transposeFocus;
+    applyFocus();
+  }
+
+  /* ── TRANSPOSED TABLE RENDERER ── */
+  function renderTransposed(veh){
+    const tbl=document.getElementById('pivotTransposed');
+    if(!tbl) return;
+    tbl.innerHTML='';
+
+    const isSen=pvDevice[veh]===true;
+    const vLabel=isSen?fullName(veh):veh;
+
+    // Collect dates from parsedData
+    const dm={};
+    parsedData.forEach(e=>{ const k=fmt(e.date); dm[k]={label:fmtLbl(e.date),date:e.date}; });
+    const existingDates=Object.entries(dm).sort((a,b)=>dsort(a[1].date,b[1].date));
+    if(existingDates.length>=2){
+      const first=existingDates[0][1].date, last=existingDates[existingDates.length-1][1].date;
+      const cur=new Date(first.year,first.month,first.day), end=new Date(last.year,last.month,last.day);
+      while(cur<=end){
+        const d={day:cur.getDate(),month:cur.getMonth(),year:cur.getFullYear()};
+        const k=fmt(d); if(!dm[k]) dm[k]={label:fmtLbl(d),date:d,empty:true};
+        cur.setDate(cur.getDate()+1);
+      }
+    }
+    const sDates=Object.entries(dm).sort((a,b)=>dsort(a[1].date,b[1].date));
+
+    // ── STYLE HELPERS ──
+    const hdrCss='font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:10px 14px;white-space:nowrap;';
+    const cellCss='padding:7px 10px;text-align:center;vertical-align:middle;border-bottom:1px solid #eef1f7;';
+    function mkInp(type,store,veh2,key,css,onCh,placeholder){
+      const inp=document.createElement('input');
+      inp.type=type||'number'; inp.step='0.01';
+      inp.style.cssText=css||'width:90px;border:none;border-bottom:2px solid #d0d8e8;background:transparent;text-align:center;font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:600;color:#1a2233;outline:none;padding:5px 3px;-moz-appearance:textfield;';
+      inp.style.webkitAppearance='none';
+      inp.placeholder=placeholder||'';
+      if(!store[veh2]) store[veh2]={};
+      const sv=store[veh2][key]!=null?store[veh2][key]:null;
+      if(sv!=null) inp.value=sv;
+      inp.addEventListener('change',()=>{
+        if(!store[veh2]) store[veh2]={};
+        store[veh2][key]=inp.value!==''?(type==='text'?inp.value:parseFloat(inp.value)):null;
+        if(onCh) onCh();
+        scheduleSave();
+      });
+      return inp;
+    }
+    function mkScalarInp(type,store,veh2,css,placeholder,onCh){
+      const inp=document.createElement('input');
+      inp.type=type||'number'; inp.step='0.01';
+      inp.style.cssText=css||'width:90px;border:none;border-bottom:2px solid #d0d8e8;background:transparent;text-align:center;font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:600;color:#1a2233;outline:none;padding:5px 3px;-moz-appearance:textfield;';
+      inp.placeholder=placeholder||'';
+      const sv=store[veh2]!=null?store[veh2]:null;
+      if(sv!=null) inp.value=sv;
+      inp.addEventListener('change',()=>{
+        store[veh2]=inp.value!==''?(type==='text'?inp.value:parseFloat(inp.value)):null;
+        if(onCh) onCh();
+        scheduleSave();
+      });
+      return inp;
+    }
+
+    // ── HEADER ROWS (2 frozen rows) ──
+    const thead=tbl.createTHead();
+
+    // Row 1 — column labels (sticky top:0, height 44px)
+    const hr=thead.insertRow();
+    hr.style.height='44px';
+    function addTH(text,bg,fg,extra,topPx){
+      const th=document.createElement('th');
+      th.style.cssText=`${hdrCss}background:${bg||'#1a3a6b'};color:${fg||'#fff'};${extra||''}position:sticky;top:${topPx||0}px;z-index:3;`;
+      th.innerHTML=text; hr.appendChild(th); return th;
+    }
+    addTH('FIELD','#2c3e50','#fff','min-width:140px;text-align:left;');
+    addTH(`📊 CALCULATED<br><small style="font-size:9px;opacity:0.75;font-weight:400;">${vLabel}</small>`,'#e67e00','#fff','min-width:130px;');
+    addTH(`📋 SITE ENTRY<br><small style="font-size:9px;opacity:0.75;font-weight:400;">${vLabel}</small>`,'#1a3a6b','#fff','min-width:130px;');
+
+    // Row 2 — vehicle summary info (sticky top:44px, height 36px)
+    const hr2=thead.insertRow();
+    hr2.style.height='36px';
+    const pfData=window.pumpFillData||{};
+    const firstDateKey=sDates.length>0?sDates[0][0]:null;
+    const numVal=v=>{ if(v==null||v==='') return null; const n=parseFloat(v); return isNaN(n)?null:n; };
+
+    // totals for sub-header
+    const totalCalcFill=sDates.reduce((s,[k])=>s+(numVal(pfData[veh]&&pfData[veh][k])||0),0);
+    const totalSiteFill=sDates.reduce((s,[k])=>s+(numVal(sitePumpData[veh]&&sitePumpData[veh][k])||0),0);
+    const dateRange=sDates.length>0?`${sDates[0][1].label} → ${sDates[sDates.length-1][1].label}`:'—';
+
+    function addTH2(html,bg,fg){
+      const th=document.createElement('th');
+      th.style.cssText=`font-size:10px;font-weight:600;padding:5px 14px;background:${bg};color:${fg};position:sticky;top:44px;z-index:3;border-bottom:2px solid rgba(0,0,0,0.1);white-space:nowrap;`;
+      th.innerHTML=html; hr2.appendChild(th); return th;
+    }
+    addTH2(`📅 ${dateRange} &nbsp;|&nbsp; ${sDates.length} date${sDates.length!==1?'s':''}${isSen?' &nbsp;📡 Device':' &nbsp;📵 No Device'}`, '#3d3d3d','#eee');
+    addTH2(`Total Fill: <strong style="font-size:12px;color:#fff;">${totalCalcFill>0?totalCalcFill.toFixed(2)+' L':'—'}</strong>`,'#c0622b','#ffe0c0');
+    addTH2(`Total Fill: <strong style="font-size:12px;color:#fff;">${totalSiteFill>0?totalSiteFill.toFixed(2)+' L':'—'}</strong>`,'#134f8a','#c0d8ff');
+
+    const tbody=tbl.createTBody();
+    function addRow(label,labelBg,labelFg,buildCalc,buildSite,rowBg){
+      const tr=tbody.insertRow();
+      tr.style.background=rowBg||'';
+      const tdL=tr.insertCell();
+      tdL.style.cssText=`${cellCss}text-align:left;background:transparent;color:${labelFg||'#1a2233'};font-weight:700;font-size:11px;letter-spacing:0.8px;border-right:2px solid #d0d8e8;`;
+      tdL.innerHTML=label;
+      const tdC=tr.insertCell(); tdC.style.cssText=cellCss+'border-right:1px solid #eef1f7;'; buildCalc(tdC);
+      const tdS=tr.insertCell(); tdS.style.cssText=cellCss; buildSite(tdS);
+      return tr;
+    }
+    function addSectionHeader(label,color){
+      const tr=tbody.insertRow();
+      const td=tr.insertCell(); td.colSpan=3;
+      td.style.cssText=`background:transparent;color:${color};font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:7px 14px;border-bottom:2px solid ${color};`;
+      td.textContent=label;
+      return tr;
+    }
+    // Helper: make a row sticky at a given top offset
+    function stickyRow(tr, topPx, bg){
+      [...tr.cells].forEach(td=>{
+        td.style.position='sticky';
+        td.style.top=topPx+'px';
+        td.style.zIndex='2';
+        td.style.background=bg||'#f8f9fb';
+      });
+    }
+
+    // START DT — rows 3 & 4 are frozen (top: 80 = 44+36, top: 114 = 44+36+34)
+    const r3=addSectionHeader('⏱ PERIOD','#006080');
+    stickyRow(r3, 80, '#eaf6fa');
+    const r4=addRow('▶ Start Date/Time','#e8f5f8','#006080',
+      td=>{ const inp=document.createElement('input'); inp.type='text'; inp.placeholder='DD/MM/YYYY HH:MM'; inp.style.cssText='width:140px;border:none;border-bottom:2px solid #006080;background:transparent;font-family:"JetBrains Mono",monospace;font-size:12px;color:#006080;outline:none;padding:4px 3px;'; if(pvStartDT[veh]) inp.value=pvStartDT[veh]; inp.addEventListener('change',()=>{ pvStartDT[veh]=inp.value; scheduleSave(); }); td.appendChild(inp); },
+      td=>{ const inp=document.createElement('input'); inp.type='text'; inp.placeholder='DD/MM/YYYY HH:MM'; inp.style.cssText='width:140px;border:none;border-bottom:2px solid #006080;background:transparent;font-family:"JetBrains Mono",monospace;font-size:12px;color:#006080;outline:none;padding:4px 3px;'; if(siteStartDT[veh]) inp.value=siteStartDT[veh]; inp.addEventListener('change',()=>{ siteStartDT[veh]=inp.value; scheduleSave(); }); td.appendChild(inp); }
+    );
+    stickyRow(r4, 114, '#f0fafb');
+
+    // DATE ROWS
+    const pals=[
+      {bg:'#1a3a6b',fg:'#fff'},{bg:'#1d6f42',fg:'#fff'},{bg:'#7a3900',fg:'#fff'},
+      {bg:'#5a1a8a',fg:'#fff'},{bg:'#7a1a1a',fg:'#fff'},{bg:'#006080',fg:'#fff'}
+    ];
+    const inpStyle=(color)=>`width:88px;border:none;border-bottom:2px solid ${color};background:transparent;text-align:center;font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:600;color:${color};outline:none;padding:5px 3px;-moz-appearance:textfield;`;
+
+    sDates.forEach(([key,info],di)=>{
+      const pal=pals[di%pals.length];
+      addSectionHeader(info.label, pal.bg);
+
+      // Balance
+      addRow('Balance','#dbe8ff','#1a3a6b',
+        td=>td.appendChild(mkInp('number',balData,veh,key,inpStyle('#1a3a6b'),()=>renderTransposed(veh),'0')),
+        td=>td.appendChild(mkInp('number',siteBalData,veh,key,inpStyle('#4d7fd4'),null,'0'))
+      );
+      // Pump Fill
+      const autoFill=pfData[veh]&&pfData[veh][key]!=null?pfData[veh][key]:null;
+      addRow('Pump Fill','#d1f5e0','#1d6f42',
+        td=>{
+          const inp=document.createElement('input'); inp.type='text'; inp.placeholder='—';
+          inp.style.cssText=inpStyle('#1d6f42');
+          if(pfData[veh]&&pfData[veh][key]!=null) inp.value=pfData[veh][key];
+          else if(autoFill!=null){ inp.value=autoFill; if(!pfData[veh]) pfData[veh]={}; pfData[veh][key]=autoFill; }
+          inp.addEventListener('change',()=>{ if(!pfData[veh]) pfData[veh]={}; pfData[veh][key]=inp.value!==''?inp.value:null; renderTransposed(veh); scheduleSave(); });
+          td.appendChild(inp);
+        },
+        td=>td.appendChild(mkInp('number',sitePumpData,veh,key,inpStyle('#28a745'),null,'—'))
+      );
+      // OBD Fill
+      addRow('OBD Fill','#e8f5ff','#006080',
+        td=>{ const inp=document.createElement('input'); inp.type='text'; inp.placeholder='—'; inp.style.cssText=inpStyle(isSen?'#1a6b3a':'#006080'); const ov=obdFillData[veh]&&obdFillData[veh][key]!=null?obdFillData[veh][key]:null; if(ov!=null) inp.value=ov; inp.addEventListener('change',()=>{ if(!obdFillData[veh]) obdFillData[veh]={}; obdFillData[veh][key]=inp.value!==''?inp.value:null; scheduleSave(); }); td.appendChild(inp); },
+        td=>td.appendChild(mkInp('number',siteObdFData,veh,key,inpStyle('#006080'),null,'—'))
+      );
+      // Consumed
+      addRow('Consumed','#fde8d8','#7a3900',
+        td=>td.appendChild(mkInp('number',consData,veh,key,inpStyle('#7a3900'),null,'0')),
+        td=>td.appendChild(mkInp('number',siteConsData,veh,key,inpStyle('#7a3900'),null,'0'))
+      );
+    });
+
+    // END DT
+    addSectionHeader('🏁 PERIOD END','#7a3900');
+    addRow('◼ End Date/Time','#fff5ee','#7a3900',
+      td=>{ const inp=document.createElement('input'); inp.type='text'; inp.placeholder='DD/MM/YYYY HH:MM'; inp.style.cssText='width:140px;border:none;border-bottom:2px solid #7a3900;background:transparent;font-family:"JetBrains Mono",monospace;font-size:12px;color:#7a3900;outline:none;padding:4px 3px;'; if(pvEndDT[veh]) inp.value=pvEndDT[veh]; inp.addEventListener('change',()=>{ pvEndDT[veh]=inp.value; scheduleSave(); }); td.appendChild(inp); },
+      td=>{ const inp=document.createElement('input'); inp.type='text'; inp.placeholder='DD/MM/YYYY HH:MM'; inp.style.cssText='width:140px;border:none;border-bottom:2px solid #7a3900;background:transparent;font-family:"JetBrains Mono",monospace;font-size:12px;color:#7a3900;outline:none;padding:4px 3px;'; if(siteEndDT[veh]) inp.value=siteEndDT[veh]; inp.addEventListener('change',()=>{ siteEndDT[veh]=inp.value; scheduleSave(); }); td.appendChild(inp); }
+    );
+
+    // RECONCILIATION
+    addSectionHeader('📊 RECONCILIATION','#2c3e50');
+
+    // Last Balance
+    addRow('Last Balance (Closing)','#dbe8ff','#1a3a6b',
+      td=>{ const inp=document.createElement('input'); inp.type='number'; inp.step='0.01'; inp.placeholder='0.00'; inp.style.cssText=inpStyle('#1a3a6b'); if(pvLastBal[veh]!=null) inp.value=pvLastBal[veh]; inp.addEventListener('change',()=>{ pvLastBal[veh]=inp.value!==''?parseFloat(inp.value):null; renderTransposed(veh); scheduleSave(); }); td.appendChild(inp); },
+      td=>{ const inp=document.createElement('input'); inp.type='number'; inp.step='0.01'; inp.placeholder='0.00'; inp.style.cssText=inpStyle('#4d7fd4'); if(siteLastBal[veh]!=null) inp.value=siteLastBal[veh]; inp.addEventListener('change',()=>{ siteLastBal[veh]=inp.value!==''?parseFloat(inp.value):null; renderTransposed(veh); scheduleSave(); }); td.appendChild(inp); }
+    );
+
+    // Manual Consumption — auto calculated
+    const openBal=firstDateKey&&balData[veh]&&balData[veh][firstDateKey]!=null?balData[veh][firstDateKey]:null;
+    const totalPump=sDates.reduce((s,[k])=>s+(numVal(pfData[veh]&&pfData[veh][k])||0),0);
+    const lastBal=pvLastBal[veh];
+    const manCons=(openBal!=null&&lastBal!=null)?openBal+totalPump-lastBal:null;
+    const siteOpenBal=firstDateKey&&siteBalData[veh]&&siteBalData[veh][firstDateKey]!=null?siteBalData[veh][firstDateKey]:null;
+    const siteTotPump=sDates.reduce((s,[k])=>s+(numVal(sitePumpData[veh]&&sitePumpData[veh][k])||0),0);
+    const siteLastB=siteLastBal[veh];
+    const siteManCons=(siteOpenBal!=null&&siteLastB!=null)?siteOpenBal+siteTotPump-siteLastB:null;
+
+    addRow('Manual Consumption<br><small style="font-size:9px;font-weight:400;">Open + Fill − Last</small>','#fde8d8','#c0392b',
+      td=>{ td.style.fontSize='15px'; td.style.fontFamily='"JetBrains Mono",monospace'; td.style.fontWeight='800'; td.style.color=manCons!=null?(manCons>0?'#c0392b':'#1d6f42'):'#bbb'; td.innerHTML=manCons!=null?`${manCons.toFixed(2)}<div style="font-size:9px;color:#8899aa;margin-top:2px;">${openBal!=null?openBal.toFixed(1):'?'}+${totalPump.toFixed(1)}−${lastBal!=null?lastBal.toFixed(1):'?'}</div>`:'<span style="font-size:11px;color:#ccc;">Enter Bal & Last</span>'; },
+      td=>{ td.style.fontSize='15px'; td.style.fontFamily='"JetBrains Mono",monospace'; td.style.fontWeight='800'; td.style.color=siteManCons!=null?(siteManCons>0?'#c0392b':'#1d6f42'):'#bbb'; td.innerHTML=siteManCons!=null?`${siteManCons.toFixed(2)}<div style="font-size:9px;color:#8899aa;margin-top:2px;">${siteOpenBal!=null?siteOpenBal.toFixed(1):'?'}+${siteTotPump.toFixed(1)}−${siteLastB!=null?siteLastB.toFixed(1):'?'}</div>`:'<span style="font-size:11px;color:#ccc;">Enter Bal & Last</span>'; }
+    );
+
+    // OBD Consumption
+    const diff=(manCons!=null&&pvOBD[veh]!=null)?manCons-pvOBD[veh]:null;
+    const diffStatus=diff==null?'na':Math.abs(diff)<0.5?'ok':diff>0?'theft':'sensor';
+    addRow('OBD Consumption<br><small style="font-size:9px;font-weight:400;">GPS/Telematics</small>','#f0e6ff','#5a1a8a',
+      td=>{
+        const inp=document.createElement('input'); inp.type='number'; inp.step='0.01'; inp.placeholder=isSen?'GPS':'0.00';
+        inp.style.cssText=inpStyle('#5a1a8a')+'display:block;margin:0 auto 6px;';
+        if(pvOBD[veh]!=null) inp.value=pvOBD[veh];
+        inp.addEventListener('change',()=>{ pvOBD[veh]=inp.value!==''?parseFloat(inp.value):null; renderTransposed(veh); scheduleSave(); });
+        td.appendChild(inp);
+        if(diff!=null){
+          const pill=document.createElement('span'); pill.className='diff-pill diff-'+diffStatus;
+          pill.innerHTML=diffStatus==='ok'?'✓ MATCH':diffStatus==='theft'?`▲ ${diff.toFixed(1)}L THEFT?`:`▼ ${Math.abs(diff).toFixed(1)}L SENSOR?`;
+          td.appendChild(pill);
+        }
+      },
+      td=>{ const inp=document.createElement('input'); inp.type='number'; inp.step='0.01'; inp.placeholder=isSen?'GPS':'0.00'; inp.style.cssText=inpStyle('#5a1a8a'); if(siteOBD[veh]!=null) inp.value=siteOBD[veh]; inp.addEventListener('change',()=>{ siteOBD[veh]=inp.value!==''?parseFloat(inp.value):null; scheduleSave(); }); td.appendChild(inp); }
+    );
+
+    // Remarks
+    addRow('Remarks','#f5f5f5','#444',
+      td=>{ const ta=document.createElement('textarea'); ta.rows=2; ta.placeholder='Add remark...'; ta.style.cssText='width:100%;border:none;border-bottom:2px solid #d0d8e8;background:transparent;font-family:"Inter",sans-serif;font-size:12px;color:#333;outline:none;resize:none;padding:4px 2px;'; if(pvRemark[veh]) ta.value=pvRemark[veh]; ta.addEventListener('input',()=>{ pvRemark[veh]=ta.value; scheduleSave(); }); td.appendChild(ta); },
+      td=>{ const ta=document.createElement('textarea'); ta.rows=2; ta.placeholder='Site remark...'; ta.style.cssText='width:100%;border:none;border-bottom:2px solid #a8e6c0;background:transparent;font-family:"Inter",sans-serif;font-size:12px;color:#333;outline:none;resize:none;padding:4px 2px;'; if(siteRemark[veh]) ta.value=siteRemark[veh]; ta.addEventListener('input',()=>{ siteRemark[veh]=ta.value; scheduleSave(); }); td.appendChild(ta); }
+    );
+
+    // Done checkbox row
+    addRow('✓ Mark Done','#e8f5e9','#1d6f42',
+      td=>{ const chk=document.createElement('input'); chk.type='checkbox'; chk.style.cssText='width:18px;height:18px;cursor:pointer;accent-color:#1d6f42;'; if(pvDone[veh]) chk.checked=true; chk.addEventListener('change',()=>{ pvDone[veh]=chk.checked; scheduleSave(); }); td.style.textAlign='center'; td.appendChild(chk); },
+      td=>{ td.innerHTML='<span style="font-size:11px;color:#aaa;">—</span>'; }
+    );
+  }
+
+  function adjPivot(key, delta){
+    const limits = { rh:[18,80], cw:[36,140], fs:[8,18], dt:[100,260] };
+    pvDisplay[key] = Math.min(limits[key][1], Math.max(limits[key][0], pvDisplay[key]+delta));
+    applyPivotDisplay();
+    document.getElementById('ptb'+key.toUpperCase()).textContent = pvDisplay[key];
+    scheduleSave();
+  }
+
+  function resetPivotDisplay(){
+    Object.assign(pvDisplay, pvDisplayDefaults);
+    applyPivotDisplay();
+    ['RH','CW','FS','DT'].forEach(k => {
+      const el2 = document.getElementById('ptb'+k);
+      if(el2) el2.textContent = pvDisplay[k.toLowerCase()];
+    });
+    scheduleSave();
+  }
+
+  function applyPivotDisplay(){
+    const tbl = document.getElementById('pivotTable');
+    if(!tbl) return;
+    const {rh, cw, fs, dt} = pvDisplay;
+
+    // Font size on whole table
+    tbl.style.fontSize = fs+'px';
+
+    // Row height — set on all tbody data rows (skip header rows)
+    [...tbl.querySelectorAll('tbody tr')].forEach(tr => {
+      tr.style.height = rh+'px';
+    });
+
+    // Cell width — apply to .pv-cell and .pv-inp
+    [...tbl.querySelectorAll('.pv-cell')].forEach(td => {
+      td.style.minWidth = cw+'px';
+      td.style.maxWidth = (cw+20)+'px';
+    });
+    [...tbl.querySelectorAll('.pv-inp')].forEach(inp => {
+      inp.style.width = (cw-6)+'px';
+      inp.style.fontSize = fs+'px';
+    });
+
+    // Datetime column width
+    [...tbl.querySelectorAll('.pv-cell-dt')].forEach(td => {
+      td.style.minWidth = dt+'px';
+      td.style.maxWidth = (dt+12)+'px';
+    });
+    [...tbl.querySelectorAll('.pv-inp-dt')].forEach(ta => {
+      ta.style.width = (dt-10)+'px';
+      ta.style.fontSize = fs+'px';
+    });
+  }
+
+  // ── RESTORE SESSION ON PAGE LOAD ──
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const savedAt = loadSession();
+    // Restore display vals to toolbar
+    ['RH','CW','FS','DT'].forEach(k=>{ const el2=document.getElementById('ptb'+k); if(el2) el2.textContent=pvDisplay[k.toLowerCase()]; });
+    updateSessionBadge(savedAt||null);
+    if(savedAt && parsedData.length){
+      render();
+      updateSessionBadge(savedAt);
+    }
+  });
+</script>
+</body>
+</html>
