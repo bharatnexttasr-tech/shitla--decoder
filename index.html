@@ -108,6 +108,8 @@ td{padding:7px 8px;vertical-align:middle;}
     <div class="btn-row">
       <button class="btn-primary" onclick="decode()">⚡ Decode Messages</button>
       <button class="btn-clear" onclick="clearAll()">✕ Clear</button>
+      <label style="background:#1a3a6b;color:#fff;border-radius:7px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">📂 Load Saved Work<input type="file" accept=".json" onchange="loadWork(this)" style="display:none;"></label>
+      <label style="background:#1a3a6b;color:#fff;border-radius:7px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">📂 Load Work<input type="file" accept=".json" onchange="loadWork(this)" style="display:none;"></label>
       <span id="entryCount" style="display:none;">
         <span class="badge-count" id="cntBadge">0</span> entries
       </span>
@@ -119,6 +121,8 @@ td{padding:7px 8px;vertical-align:middle;}
     <label>Vehicle</label>
     <select id="vehSel" onchange="renderTable(this.value)"></select>
     <div id="p4Stats"></div>
+    <button onclick="saveWork()" style="background:#1a3a6b;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;">💾 Save Work</button>
+    <label style="background:#5a1a8a;color:#fff;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;">📂 Load Work<input type="file" accept=".json" onchange="loadWork(this)" style="display:none;"></label>
     <button class="btn-excel" onclick="dlExcel()">⬇ Download Excel</button>
   </div>
  
@@ -313,8 +317,15 @@ function renderTable(veh){
   blankRows.forEach(br=>{
     if(!showAll&&br._refVeh!==veh) return;
     const ri=all.findIndex(e=>ekey(e)===br._refKey);
-    if(ri>=0) all.splice(br._pos==='before'?ri:ri+1,0,br);
-    else if(showAll||br._refVeh===veh) all.push(br);
+    if(ri>=0){
+      all.splice(br._pos==='before'?ri:ri+1,0,br);
+    } else {
+      // Insert after the last real entry of same vehicle — keeps it in correct group
+      let lastIdx=-1;
+      all.forEach((e,i)=>{ if(!e.isBlank&&e.vehicle===br._refVeh) lastIdx=i; });
+      if(lastIdx>=0) all.splice(lastIdx+1,0,br);
+      else all.push(br);
+    }
   });
  
   let rowNum=1, total=0, lastVeh=null;
@@ -537,7 +548,8 @@ async function dlExcel(){
     blankRows.forEach(br=>{
       if(!showAll&&br._refVeh!==selVeh) return;
       const ri=all.findIndex(e=>ekey(e)===br._refKey);
-      if(ri>=0) all.splice(br._pos==='before'?ri:ri+1,0,br); else if(showAll||br._refVeh===selVeh) all.push(br);
+      if(ri>=0) all.splice(br._pos==='before'?ri:ri+1,0,br);
+      else{ let li=-1; all.forEach((e,i)=>{ if(!e.isBlank&&e.vehicle===br._refVeh) li=i; }); if(li>=0) all.splice(li+1,0,br); else if(showAll||br._refVeh===selVeh) all.push(br); }
     });
  
     const sname=(showAll?'All Vehicles':(isSen(selVeh)?fullName(selVeh):selVeh)).substring(0,31);
@@ -594,6 +606,56 @@ async function dlExcel(){
     a.href=URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href);
   }catch(err){alert('Excel error: '+err.message);}
   if(btn){btn.disabled=false;btn.innerHTML='⬇ Download Excel';}
+}
+ 
+// ── SAVE / LOAD WORK ──
+function saveWork(){
+  if(!parsedData.length&&!blankRows.length){ alert('Nothing to save yet.'); return; }
+  const payload={
+    version:1,
+    savedAt:new Date().toISOString(),
+    parsedData,
+    blankRows,
+    extra,
+    vehDone,
+    waInput:document.getElementById('waInput')?.value||'',
+    selVeh:SEL(),
+  };
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); const now=new Date();
+  a.download=`FuelWork_${now.getDate()}-${now.getMonth()+1}-${now.getFullYear()}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.json`;
+  a.href=URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href);
+}
+ 
+function loadWork(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const s=JSON.parse(ev.target.result);
+      if(!s||!s.parsedData) throw new Error('Invalid file');
+      // Clear existing
+      parsedData=[]; blankRows=[];
+      Object.keys(extra).forEach(k=>delete extra[k]);
+      Object.keys(vehDone).forEach(k=>delete vehDone[k]);
+      // Restore
+      parsedData=s.parsedData||[];
+      blankRows=s.blankRows||[];
+      Object.assign(extra,s.extra||{});
+      Object.assign(vehDone,s.vehDone||{});
+      if(s.waInput) document.getElementById('waInput').value=s.waInput;
+      _bid=Math.max(1,...blankRows.map(b=>(b._bid||0)+1),1);
+      if(parsedData.length) initTable(s.selVeh);
+      saveSession();
+      // Toast
+      const t=document.createElement('div');
+      t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1d6f42;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:700;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,0.2);';
+      t.textContent='✅ Work loaded — '+parsedData.length+' entries restored';
+      document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+    }catch(err){ alert('Could not load file: '+err.message); }
+    input.value='';
+  };
+  reader.readAsText(file);
 }
  
 // ── INIT ──
